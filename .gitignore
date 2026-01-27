@@ -42,6 +42,9 @@ vignettes/*.pdf
 # pkgdown site
 docs/
 
+# Output data parquet files
+data/*.parquet
+
 # translation temp files
 po/*~
 
