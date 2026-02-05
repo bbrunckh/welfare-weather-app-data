@@ -1,8 +1,18 @@
-# pins H3 indexed weather data for wise-app
+# Download and prepare H3 indexed weather data for WISE-APP
 
 rm(list = ls())
 
+#------------------------------------------------------------------------------#
+
 # Load libraries
+library(duckdbfs)
+load_h3()
+library(dplyr)
+
+open_dataset('/Users/bbrunckhorst/Library/CloudStorage/OneDrive-WBG/Household survey locations to H3/02_data/h3/era5land/AGO_era5land_h3_6.parquet') |>
+  mutate(h3_6 = h3_string_to_h3(h3_6)) |>
+  write_dataset('/Users/bbrunckhorst/Library/CloudStorage/OneDrive-WBG/Household survey locations to H3/02_data/h3/era5land/AGO_era5land_h3_6-2.parquet')
+
 library(pins)
 library(nanoparquet)
 

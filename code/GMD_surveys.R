@@ -1,4 +1,4 @@
-# Prep GMD survey data for wise-app
+# Download and prepare GMD survey data for WISE-APP
 
 rm(list = ls())
 
@@ -11,6 +11,7 @@ library(duckdbfs)
 library(dplyr)
 
 #------------------------------------------------------------------------------#
+# User settings
 
 # Path to data folder (where output files will be saved)
 data_path <- "data/"
