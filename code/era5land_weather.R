@@ -1,13 +1,49 @@
-# Download and prepare H3 indexed weather data for WISE-APP
+# Download and prepare H3-indexed ERA5-Land weather data for WISE-APP
 
 rm(list = ls())
 
 #------------------------------------------------------------------------------#
 
-# Load libraries
+# load libraries
+library(dlw)
+options(dlw.local_dir = "~/dlw/")
 library(duckdbfs)
 load_h3()
 library(dplyr)
+
+# load helper functions
+source("code/utils.R")
+
+#------------------------------------------------------------------------------#
+# User settings
+
+# Path to data folder (where output files will be saved)
+data_path <- "data/"
+
+# WISE-APP variable list
+varlist <- read.csv("data/variable_list.csv")
+
+#------------------------------------------------------------------------------#
+# check columns follow wise-app variable list schema
+message("Checking variable list follows wise-app schema...")
+
+varlist_schema <- tibble::tribble(
+  ~name, ~label, ~type, ~units, ~id, ~outcome, ~weather, ~ind, ~hh, ~firm, ~area, ~interact, ~fe,
+  "character", "character", "character", "character", "integer", "integer", "integer", "integer", "integer", "integer", "integer", "integer", "integer"
+)
+if(!check_columns(varlist, varlist_schema)){
+  stop("Variable list does not follow wise-app schema!")
+}
+
+# check mandatory variables are included in variable list
+  #... to be implemented
+
+
+rm(list = ls())
+
+#------------------------------------------------------------------------------#
+
+
 
 open_dataset('/Users/bbrunckhorst/Library/CloudStorage/OneDrive-WBG/Household survey locations to H3/02_data/h3/era5land/AGO_era5land_h3_6.parquet') |>
   mutate(h3_6 = h3_string_to_h3(h3_6)) |>
