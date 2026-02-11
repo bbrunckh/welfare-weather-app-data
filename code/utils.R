@@ -71,7 +71,7 @@ check_columns <- function(df, expected) {
 #'
 #' @examples
 #' survey_list <- tibble::tibble(
-#'   countryname = "Kenya",
+#'   economy = "Kenya",
 #'   code = "KEN",
 #'   year = 2020L,
 #'   survname = "KIHBS",
@@ -87,7 +87,7 @@ validate_surveylist <- function(df) {
 
   # Define expected survey list schema
   survey_schema <- tibble::tibble(
-    countryname = character(),
+    economy = character(),
     code = character(),
     year = integer(),
     survname = character(),
@@ -206,4 +206,194 @@ varlist_schema <- tibble::tibble(
 
   message("Variable list is valid.")
   invisible(TRUE)
+}
+
+#' Tidy Data Frame Based on Variable List
+#'
+#' Coerces columns in a data frame to the types specified in a variable list.
+#' Only columns present in both the data frame and variable list are modified.
+#'
+#' @param df A data frame or tibble to be tidied. Can also be a duckdb connection.
+#' @param varlist A data frame with at least two columns: `name` (character) 
+#'   containing variable names, and `type` (character) containing R type names.
+#'   Valid types are: "numeric", "integer", "logical", "character", "factor", "Date".
+#'
+#' @return A data frame with columns coerced to the specified types.
+#'
+#' @examples
+#' \dontrun{
+#' # Create a variable list
+#' varlist <- data.frame(
+#'   name = c("age", "income", "employed", "name"),
+#'   type = c("integer", "numeric", "logical", "character")
+#' )
+#' 
+#' # Tidy a data frame
+#' df_clean <- tidy_vars(df, varlist)
+#' 
+#'
+#' @seealso \code{\link{mutate}}, \code{\link{across}}
+#' @export
+#' 
+tidy_vars <- function(df, varlist) {
+  # Extract variable names by type
+  num_vars <- varlist$name[varlist$type == "numeric"]
+  int_vars <- varlist$name[varlist$type == "integer"]
+  log_vars <- varlist$name[varlist$type == "logical"]
+  char_vars <- varlist$name[varlist$type == "character"]
+  fact_vars <- varlist$name[varlist$type == "factor"]
+  date_vars <- varlist$name[varlist$type == "Date"]
+  
+  # Apply conversions using across() - more efficient than looping
+  df |>
+    # keep only variables in varlist
+    select(any_of(pull(varlist,name))) |> 
+    # apply type conversions based on varlist specifications
+    mutate(
+      across(any_of(num_vars), as.numeric),
+      across(any_of(c(int_vars, log_vars)), as.integer),
+      across(any_of(c(char_vars, fact_vars)), as.character),
+      across(any_of(date_vars), as.Date)
+    ) |>
+    collect() |> # in case df is a duckdb connection, collect results into R
+    # remove columns that are all NA or all empty strings (for character columns)
+    select(where(~ !((all(is.na(.))) || is.character(.) && all(is.na(.) | . == ""))))
+}
+
+##' Check for Duplicate IDs in Dataset
+#'
+#' Validates that a specified ID variable (or combination of variables) is unique 
+#' within a dataset. Useful for ensuring data quality in household or individual-level surveys.
+#'
+#' @param df A data frame or tibble to check for duplicate IDs.
+#' @param id_var Character vector specifying the name(s) of the ID variable(s) to check.
+#'   Can be a single variable (e.g., "hhid") or combination (e.g., c("hhid", "pid")).
+#' @param survey_info Optional character string with survey information (e.g., 
+#'   "GNB 2018") to include in the error message. If NULL, a generic message is used.
+#'
+#' @return Logical. Returns TRUE if no duplicates found, FALSE if duplicates exist.
+#'   Also prints a message indicating the result.
+#'
+#' @examples
+#' \dontrun{
+#' # Check single ID variable
+#' check_unique_ids(wise_hh, "hhid", paste(code, year))
+#' 
+#' # Check combination of ID variables
+#' check_unique_ids(wise_ind, c("hhid", "pid"), paste(code, year, survname))
+#' 
+#' # Use in validation workflow
+#' if (!check_unique_ids(wise_hh, "hhid", paste(code, year))) {
+#'   next  # Skip to next iteration if duplicates found
+#' }
+#' }
+#'
+#' @seealso \code{\link{duplicated}}
+#' @export
+check_unique_ids <- function(df, id_var, survey_info = NULL) {
+  # Check if all ID variables exist in dataframe
+  missing_vars <- setdiff(id_var, names(df))
+  if (length(missing_vars) > 0) {
+    stop("ID variable(s) not found in dataframe: ", paste(missing_vars, collapse = ", "))
+  }
+  
+  # Check for duplicates
+  if (length(id_var) == 1) {
+    # Single variable case
+    has_duplicates <- any(duplicated(pull(df, !!id_var)))
+    id_label <- id_var
+  } else {
+    # Multiple variables case - check combination
+    has_duplicates <- any(duplicated(df[, id_var]))
+    id_label <- paste(id_var, collapse = " + ")
+  }
+  
+  # Construct message
+  if (has_duplicates) {
+    if (!is.null(survey_info)) {
+      message("✗ ", id_label, " not unique in ", survey_info)
+    } else {
+      message("✗ ", id_label, " not unique in dataset")
+    }
+    return(FALSE)
+  } else {
+    if (!is.null(survey_info)) {
+      message("✓ ", id_label, " is unique in ", survey_info)
+    } else {
+      message("✓ ", id_label, " is unique in dataset")
+    }
+    return(TRUE)
+  }
+}
+
+#' Check Poverty Rate Against PIP Benchmark
+#'
+#' Validates that the poverty rate calculated from survey data matches the 
+#' World Bank's Poverty and Inequality Platform (PIP) estimate within an 
+#' acceptable tolerance. This check ensures data quality and consistency 
+#' with official poverty statistics.
+#'
+#' @param df A data frame containing household-level survey data with welfare,
+#'   weight, and other required variables.
+#' @param code Character string specifying the three-letter country code 
+#'   (e.g., "GNB").
+#' @param year Integer specifying the survey year (e.g., 2018).
+#' @param poverty_line Numeric poverty line in 2017 PPP USD per day. 
+#'   Default is 3.00 (lower-middle income poverty line).
+#' @param tolerance Numeric tolerance for acceptable difference between survey
+#'   and PIP poverty rates. Default is 0.001 (0.1 percentage points).
+#' @param welfare_var Character string specifying the name of the welfare 
+#'   variable in df. Default is "welfare".
+#' @param weight_var Character string specifying the name of the weight 
+#'   variable in df. Default is "weight".
+#'
+#' @return Logical. Returns TRUE if poverty rates match within tolerance, 
+#'   FALSE otherwise. Also prints a message with the comparison results.
+#'
+#' @examples
+#' \dontrun{
+#' # Check $3.00 poverty rate
+#' check_poverty_rate(wise_hh, code, year)
+#' 
+#' # Check $2.15 poverty rate (international poverty line)
+#' check_poverty_rate(wise_hh, code, year, poverty_line = 2.15)
+#' 
+#' # Use in validation workflow
+#' if (!check_poverty_rate(wise_hh, code, year)) {
+#'   errors <- c(errors, paste0("Poverty rate mismatch for ", code, " ", year))
+#'   next
+#' }
+#' }
+#'
+#' @seealso \code{\link[pipr]{get_stats}}
+#' @export
+check_poverty_rate <- function(df, code, year, 
+                               tolerance = 0.001,
+                               welfare_var = "welfare",
+                               weight_var = "weight") {
+  
+  # Get PIP poverty statistics
+  pip_stats <- pipr::get_stats(code, year)
+  pip_poor <- pull(pip_stats, headcount)
+  
+  # Calculate poverty rate from survey data
+  svy_poor <- weighted.mean(
+    df[[welfare_var]] / pip_stats$cpi / pip_stats$ppp < 3,
+    df[[weight_var]]
+  )
+  
+  # Check if rates match within tolerance
+  match <- abs(round(pip_poor, 3) - round(svy_poor, 3)) <= tolerance
+  
+  # Print comparison message
+  if (match) {
+    message("✓ Poverty rate matches PIP: survey = ", round(svy_poor, 3), 
+            ", PIP = ", round(pip_poor, 3), " for ", code, " ", year)
+  } else {
+    message("✗ Poverty rate mismatch: survey = ", round(svy_poor, 3), 
+            ", PIP = ", round(pip_poor, 3), " for ", code, " ", year,
+            " (difference = ", round(abs(svy_poor - pip_poor), 3), ")")
+  }
+  
+  return(match)
 }

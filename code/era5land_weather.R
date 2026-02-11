@@ -39,7 +39,6 @@ if(!check_columns(varlist, varlist_schema)){
   #... to be implemented
 
 
-rm(list = ls())
 
 #------------------------------------------------------------------------------#
 

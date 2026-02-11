@@ -1,144 +1,139 @@
-﻿name,label,type,units,id,outcome,weather,ind,hh,firm,area,interact,fe
-code,Country code,character,,1,0,0,0,0,0,0,0,1
-countryname,Economy,character,,1,0,0,0,0,0,0,0,0
-year,Starting year of survey,integer,,1,0,0,0,0,0,0,0,1
-survname,Survey acronym,character,,1,0,0,0,0,0,0,0,0
-strata,Strata,character,,1,0,0,0,0,0,0,0,1
-psu,PSU,character,,1,0,0,0,0,0,0,0,1
-loc_type,Type of location data,character,,1,0,0,0,0,0,0,0,1
-loc_id,Spatial unit ID,character,,1,0,0,0,0,0,0,0,1
-gaul1_code,GAUL 2024 level 1 code,character,,1,0,0,0,0,0,0,0,1
-gaul2_code,GAUL 2024 level 2 code,character,,1,0,0,0,0,0,0,0,1
-fbcz_id_num,Commuting Zone ID (Meta),integer,,1,0,0,0,0,0,0,0,1
-eFUA_ID,Functional Urban Area ID,character,,1,0,0,0,0,0,0,0,1
-ID_UC_G0,Urban Centre ID,character,,1,0,0,0,0,0,0,0,1
-h3,H3 cell index,integer,,1,0,0,0,0,0,0,0,0
-hhid,Household ID,character,,1,0,0,0,0,0,0,0,1
-pid,Individual ID,character,,1,0,0,0,0,0,0,0,1
-fid,Firm ID,character,,1,0,0,0,0,0,0,0,1
-int_year,Interview year,integer,,1,0,0,0,0,0,0,0,1
-int_month,Interview month,integer,,1,0,0,0,0,0,0,0,1
-int_day,Interview day,integer,,1,0,0,0,0,0,0,0,1
-timestamp,Date of weather,Date,,1,0,0,0,0,0,0,0,0
-weight,Sample weight,numeric,,1,0,0,0,0,0,0,0,0
-welfare,Welfare per day,numeric,LCU,0,1,0,0,1,0,0,1,0
-laborincome,Labor income per day,numeric,LCU,0,1,0,1,0,0,0,1,0
-wage,Wage per day,numeric,LCU,0,1,0,1,0,0,0,1,0
-whours,Hours of work in last week,numeric,hours,0,1,0,1,0,0,0,1,0
-wmonths,Months worked in last year,integer,months,0,1,0,1,0,0,0,1,0
-laborincome_hh,Labor income per day (per working age member),numeric,LCU,0,1,0,0,1,0,0,1,0
-wage_hh,Wage per day (per working age member),numeric,LCU,0,1,0,0,1,0,0,1,0
-whours_hh,Hours of work in last week (per working age member),numeric,hours,0,1,0,0,1,0,0,1,0
-wmonths_hh,Months worked in last year (per working age member),numeric,months,0,1,0,0,1,0,0,1,0
-employed,Employed,logical,,0,1,0,1,0,0,0,1,0
-unemployed,Unemployed,logical,,0,1,0,1,0,0,0,1,0
-notinlf,Not in labor force,logical,,0,1,0,1,0,0,0,1,0
-agriculture,Primary job in agriculture,logical,,0,1,0,1,0,0,0,1,0
-industry,Primary job in industry,logical,,0,1,0,1,0,0,0,1,0
-services,Primary job in services,logical,,0,1,0,1,0,0,0,1,0
-male,Male,logical,,0,0,0,1,0,0,0,1,0
-age,Age,numeric,years,0,0,0,1,0,1,0,1,0
-agecat,Age category,factor,,0,0,0,1,0,1,0,1,0
-literacy,Can read and write,logical,,0,0,0,1,0,0,0,1,0
-educ_com1,Completed primary education (≥15 years),logical,,0,0,0,1,0,0,0,1,0
-educ_com2,Completed secondary education (≥15 years),logical,,0,0,0,1,0,0,0,1,0
-educ_com3,Completed post-secondary education (≥15 years),logical,,0,0,0,1,0,0,0,1,0
-educat7,"Highest level of education (≥ 15 years, 7 categories)",factor,,0,0,0,1,0,0,0,1,0
-educat5,"Highest level of education (≥ 15 years, 5 categories)",factor,,0,0,0,1,0,0,0,1,0
-educat4,"Highest level of education (≥ 15 years, 4 categories)",factor,,0,0,0,1,0,0,0,1,0
-educy,Years of education (≥ 15 years),numeric,years,0,0,0,1,0,0,0,0,0
-literacy_hh,Can read and write (any member),logical,,0,0,0,0,1,0,0,1,0
-educ_com1_hh,"Completed primary education (any member, ≥15 years)",logical,,0,0,0,0,1,0,0,1,0
-educ_com2_hh,"Completed secondary education (any member, ≥15 years)",logical,,0,0,0,0,1,0,0,1,0
-educ_com3_hh,"Completed post-secondary education (any member, ≥15 years)",logical,,0,0,0,0,1,0,0,1,0
-educat7_hh,"Highest level of education (any member, ≥ 15 years, 7 categories)",factor,,0,0,0,0,1,0,0,1,0
-educat5_hh,"Highest level of education (any member, ≥ 15 years, 5 categories)",factor,,0,0,0,0,1,0,0,1,0
-educat4_hh,"Highest level of education (any member, ≥ 15 years, 4 categories)",factor,,0,0,0,0,1,0,0,1,0
-educy_hh,Mean years of education (≥ 15 years),numeric,years,0,0,0,0,1,0,0,0,0
-lstatus,Labor status,factor,,0,0,0,1,0,0,0,1,0
-empstat,Employment status,factor,,0,0,0,1,0,0,0,1,0
-selfemployed,Self employed,logical,,0,0,0,1,0,0,0,1,0
-ocusec,Sector of activity,factor,,0,0,0,1,0,0,0,1,0
-industrycat10,Industry (1 digit classification),factor,,0,0,0,1,0,0,0,1,0
-industrycat4,Industry (4 categories),factor,,0,0,0,1,0,0,0,1,0
-industry_orig,Industry (original classification),factor,,0,0,0,1,0,0,0,1,0
-occup,Occupation (1 digit classification),factor,,0,0,0,1,0,0,0,1,0
-occup_orig,Occupation (original classification),factor,,0,0,0,1,0,0,0,1,0
-njobs,Number of jobs,integer,,0,0,0,1,0,0,0,0,0
-healthins,Health insurance,logical,,0,0,0,1,0,0,0,1,0
-socialsec,Social security,logical,,0,0,0,1,0,0,0,1,0
-urban,Urban,logical,,0,0,0,0,0,0,1,1,0
-hhsize,Household size,integer,,0,0,0,0,1,0,0,0,0
-depend,Dependency ratio,numeric,,0,0,0,0,1,0,0,0,0
-imp_wat_rec,Improved water source,logical,,0,0,0,0,1,0,0,1,0
-piped,Access to piped water,logical,,0,0,0,0,1,0,0,0,0
-piped_to_prem,Access to piped water on premises,logical,,0,0,0,0,1,0,0,1,0
-w_30m,Access to water within 30 minutes,logical,,0,0,0,0,1,0,0,0,0
-w_avail,Water is available when needed,logical,,0,0,0,0,1,0,0,0,0
-sewer,Access to sewer,logical,,0,0,0,0,1,0,0,1,0
-imp_san_rec,Improved sanitation facility ,logical,,0,0,0,0,1,0,0,1,0
-solidcookfuel,Household uses solid cooking fuel,logical,,0,0,0,0,1,0,0,1,0
-electricity,Access to electricity in dwelling,logical,,0,0,0,0,1,0,0,1,0
-elechr_acc,Electricity availability,numeric,hr/day,0,0,0,0,1,0,0,0,0
-cellphone,Ownership of a cell phone,logical,,0,0,0,1,1,0,0,1,0
-computer,Ownership of a computer,logical,,0,0,0,1,1,0,0,0,0
-internet_access,Household has access to internet (within or outside the house),logical,,0,0,0,0,1,0,0,1,0
-radio,Ownership of a radio,logical,,0,0,0,0,1,0,0,0,0
-tv,Ownership of a tv,logical,,0,0,0,0,1,0,0,0,0
-fridge,Ownership of a refrigerator,logical,,0,0,0,0,1,0,0,0,0
-washmach,Ownership of a washing machine,logical,,0,0,0,0,1,0,0,0,0
-stove,Ownership of a stove,logical,,0,0,0,0,1,0,0,0,0
-fan,Ownership of an electric fan,logical,,0,0,0,0,1,0,0,1,0
-ac,Ownership of an air conditioner,logical,,0,0,0,0,1,0,0,1,0
-car,Ownership of a car,logical,,0,0,0,1,1,0,0,1,0
-bcycle,Ownership of a bicycle,logical,,0,0,0,1,1,0,0,1,0
-mcycle,Ownership of a motorcycle,logical,,0,0,0,1,1,0,0,1,0
-boat,Ownership of a boat,logical,,0,0,0,1,1,0,0,0,0
-rooms,Number of habitable rooms ,integer,,0,0,0,0,1,0,0,0,0
-ownhouse_secure,Own house,logical,,0,0,0,0,1,0,0,1,0
-renthouse,Rent house,logical,,0,0,0,0,1,0,0,0,0
-ownland,Ownership of residential land,logical,,0,0,0,0,1,0,0,1,0
-agriland,Use agricultural land,logical,,0,0,0,0,1,0,0,1,0
-area_agriland,Area of agricultural land used,numeric,Ha,0,0,0,0,1,0,0,0,0
-ownagriland,Own agricultural land,logical,,0,0,0,0,1,0,0,1,0
-area_ownagriland,Area of agricultural land owned,numeric,Ha,0,0,0,0,1,0,0,0,0
-road_density,Road density,numeric,m/km^2,0,0,0,0,0,0,1,0,0
-pop_road_2km,Percent of population living within 2km of an all season road,numeric,%,0,0,0,0,0,0,1,0,0
-ttime_city,Travel time to nearest urban centre,numeric,minutes,0,0,0,0,0,0,1,1,0
-ttime_health,Motorized travel time to nearest health care facility,numeric,minutes,0,0,0,0,0,0,1,0,0
-viirs_ntl,VIIRS nighttime lights brightness for survey year,numeric,nW/cm^2/sr,0,0,0,0,0,0,1,0,0
-viirs_ntl_5y,Percent change in VIIRS nighttime lights brightness (5 years),numeric,%,0,0,0,0,0,0,1,0,0
-flood_pop_pct,Percent of population exposed to 1 in 100 year flood > 15 cm,numeric,%,0,0,0,0,0,0,1,0,0
-built_area,Built up area  (H3 level 6),numeric,km^2,0,0,0,0,0,0,1,0,0
-area_h3_6,Area of spatial unit (H3 level 6),numeric,km^2,0,0,0,0,0,0,1,0,0
-area_h3_7,Area of spatial unit (H3 level 7),numeric,km^2,0,0,0,0,0,0,1,0,0
-dou_11_pop,Percent of population in very low density areas,numeric,%,0,0,0,0,0,0,1,0,0
-dou_12_pop,Percent of population in low density areas,numeric,%,0,0,0,0,0,0,1,0,0
-dou_13_pop,Percent of population in rural areas,numeric,%,0,0,0,0,0,0,1,0,0
-dou_21_pop,Percent of population in suburban areas,numeric,%,0,0,0,0,0,0,1,0,0
-dou_22_pop,Percent of population in semi-dense urban clusters,numeric,%,0,0,0,0,0,0,1,0,0
-dou_23_pop,Percent of population in dense urban clusters,numeric,%,0,0,0,0,0,0,1,0,0
-dou_30_pop,Percent of population in urban centers,numeric,%,0,0,0,0,0,0,1,0,0
-pop_2020,Population of spatial unit in 2020,numeric,people,0,0,0,0,0,0,1,0,0
-pop_2020_density,Population density in 2020,numeric,people/km^2,0,0,0,0,0,0,1,0,0
-pop_2020_f,Percent of population female,numeric,%,0,0,0,0,0,0,1,0,0
-pop_2020_m,Percent of population male,numeric,%,0,0,0,0,0,0,1,0,0
-t,Monthly temperature,numeric,°C,0,0,1,0,0,0,0,0,0
-tn,Monthly daily minimum temperature,numeric,°C,0,0,1,0,0,0,0,0,0
-tx,Monthly daily maximum temperature,numeric,°C,0,0,1,0,0,0,0,0,0
-dtr,Monthly daily temperature range,numeric,°C,0,0,1,0,0,0,0,0,0
-tnn,Monthly minimum of daily minimum temperature,numeric,°C,0,0,1,0,0,0,0,0,0
-txx,Monthly maximum of daily maximum temperature,numeric,°C,0,0,1,0,0,0,0,0,0
-tx35,Monthly extreme hot days,numeric,days,0,0,1,0,0,0,0,0,0
-tx40,Monthly very extreme hot days,numeric,days,0,0,1,0,0,0,0,0,0
-tr,Monthly tropical nights,numeric,days,0,0,1,0,0,0,0,0,0
-r,Monthly precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
-r01,Monthly wet days,numeric,days,0,0,1,0,0,0,0,0,0
-sdii,Monthly precipitation intensity,numeric,mm,0,0,1,0,0,0,0,0,0
-rx1day,Monthly maximum 1-day precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
-rx5day,Monthly maximum 5-day precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
-r10,Monthly heavy precipitation days,numeric,days,0,0,1,0,0,0,0,0,0
-r20,Monthly very heavy precipitation days,numeric,days,0,0,1,0,0,0,0,0,0
-mrsos,Monthly soil moisture in upper soil portion,numeric,kg m-2,0,0,1,0,0,0,0,0,0
-spi6,Monthly SPI-6 ,numeric,,0,0,1,0,0,0,0,0,0
-spei6,Monthly SPEI-6,numeric,,0,0,1,0,0,0,0,0,0
+"name","label","type","units","id","outcome","weather","ind","hh","firm","area","interact","fe"
+"code","Country code","character","",1,0,0,0,0,0,0,0,1
+"economy","Economy","character","",1,0,0,0,0,0,0,0,0
+"year","Starting year of survey","integer","",1,0,0,0,0,0,0,0,1
+"survname","Survey acronym","character","",1,0,0,0,0,0,0,0,0
+"strata","Strata","character","",1,0,0,0,0,0,0,0,1
+"psu","PSU","character","",1,0,0,0,0,0,0,0,1
+"loc_type","Type of location data","character","",1,0,0,0,0,0,0,0,1
+"loc_id","Spatial unit ID","character","",1,0,0,0,0,0,0,0,1
+"gaul1_code","GAUL 2024 level 1 code","character","",1,0,0,0,0,0,0,0,1
+"gaul2_code","GAUL 2024 level 2 code","character","",1,0,0,0,0,0,0,0,1
+"fbcz_id_num","Commuting Zone ID (Meta)","character","",1,0,0,0,0,0,0,0,1
+"eFUA_ID","Functional Urban Area ID","character","",1,0,0,0,0,0,0,0,1
+"ID_UC_G0","Urban Centre ID","character","",1,0,0,0,0,0,0,0,1
+"h3","H3 cell index","character","",1,0,0,0,0,0,0,0,0
+"hhid","Household ID","character","",1,0,0,0,0,0,0,0,1
+"pid","Individual ID","character","",1,0,0,0,0,0,0,0,1
+"fid","Firm ID","character","",1,0,0,0,0,0,0,0,1
+"int_year","Interview year","integer","",1,0,0,0,0,0,0,0,1
+"int_month","Interview month","integer","",1,0,0,0,0,0,0,0,1
+"int_day","Interview day","integer","",1,0,0,0,0,0,0,0,1
+"timestamp","Date of weather","Date","",1,0,0,0,0,0,0,0,0
+"weight","Sample weight","numeric","",1,0,0,0,0,0,0,0,0
+"welfare","Welfare per day","numeric","LCU",0,1,0,0,1,0,0,1,0
+"laborincome","Labor income per day","numeric","LCU",0,1,0,1,0,0,0,1,0
+"wage","Wage per day","numeric","LCU",0,1,0,1,0,0,0,1,0
+"whours","Hours of work in last week","numeric","hours",0,1,0,1,0,0,0,1,0
+"wmonths","Months worked in last year","integer","months",0,1,0,1,0,0,0,1,0
+"laborincome_hh","Labor income per day (per working age member)","numeric","LCU",0,1,0,0,1,0,0,1,0
+"wage_hh","Wage per day (per working age member)","numeric","LCU",0,1,0,0,1,0,0,1,0
+"whours_hh","Hours of work in last week (per working age member)","numeric","hours",0,1,0,0,1,0,0,1,0
+"wmonths_hh","Months worked in last year (per working age member)","numeric","months",0,1,0,0,1,0,0,1,0
+"employed","Employed","logical","",0,1,0,1,0,0,0,1,0
+"unemployed","Unemployed","logical","",0,1,0,1,0,0,0,1,0
+"notinlf","Not in labor force","logical","",0,1,0,1,0,0,0,1,0
+"selfemployed","Self employed","logical","",0,1,0,1,0,0,0,1,0
+"agriculture","Primary job in agriculture","logical","",0,1,0,1,0,0,0,1,0
+"industry","Primary job in industry","logical","",0,1,0,1,0,0,0,1,0
+"services","Primary job in services","logical","",0,1,0,1,0,0,0,1,0
+"male","Male","logical","",0,0,0,1,0,0,0,1,0
+"age","Age","numeric","years",0,0,0,1,0,1,0,1,0
+"agecat","Age category","factor","",0,0,0,1,0,1,0,1,0
+"literacy","Can read and write","logical","",0,0,0,1,0,0,0,1,0
+"educ_com1","Completed primary education (≥15 years)","logical","",0,0,0,1,0,0,0,1,0
+"educ_com2","Completed secondary education (≥15 years)","logical","",0,0,0,1,0,0,0,1,0
+"educ_com3","Completed post-secondary education (≥15 years)","logical","",0,0,0,1,0,0,0,1,0
+"educat7","Highest level of education (≥ 15 years, 7 categories)","factor","",0,0,0,1,0,0,0,1,0
+"educat5","Highest level of education (≥ 15 years, 5 categories)","factor","",0,0,0,1,0,0,0,1,0
+"educat4","Highest level of education (≥ 15 years, 4 categories)","factor","",0,0,0,1,0,0,0,1,0
+"educy","Years of education (≥ 15 years)","numeric","years",0,0,0,1,0,0,0,0,0
+"literacy_hh","Can read and write (any member)","logical","",0,0,0,0,1,0,0,1,0
+"educ_com1_hh","Completed primary education (any member, ≥15 years)","logical","",0,0,0,0,1,0,0,1,0
+"educ_com2_hh","Completed secondary education (any member, ≥15 years)","logical","",0,0,0,0,1,0,0,1,0
+"educ_com3_hh","Completed post-secondary education (any member, ≥15 years)","logical","",0,0,0,0,1,0,0,1,0
+"educat7_hh","Highest level of education (any member, ≥ 15 years, 7 categories)","factor","",0,0,0,0,1,0,0,1,0
+"educat5_hh","Highest level of education (any member, ≥ 15 years, 5 categories)","factor","",0,0,0,0,1,0,0,1,0
+"educat4_hh","Highest level of education (any member, ≥ 15 years, 4 categories)","factor","",0,0,0,0,1,0,0,1,0
+"educy_hh","Mean years of education (≥ 15 years)","numeric","years",0,0,0,0,1,0,0,0,0
+"lstatus","Labor status","factor","",0,0,0,1,0,0,0,1,0
+"empstat","Employment status","factor","",0,0,0,1,0,0,0,1,0
+"ocusec","Sector of activity","factor","",0,0,0,1,0,0,0,1,0
+"industrycat10","Industry (1 digit classification)","factor","",0,0,0,1,0,0,0,1,0
+"industrycat4","Industry (4 categories)","factor","",0,0,0,1,0,0,0,1,0
+"industry_orig","Industry (original classification)","factor","",0,0,0,1,0,0,0,1,0
+"occup","Occupation (1 digit classification)","factor","",0,0,0,1,0,0,0,1,0
+"occup_orig","Occupation (original classification)","factor","",0,0,0,1,0,0,0,1,0
+"njobs","Number of jobs","integer","",0,0,0,1,0,0,0,0,0
+"healthins","Health insurance","logical","",0,0,0,1,0,0,0,1,0
+"socialsec","Social security","logical","",0,0,0,1,0,0,0,1,0
+"urban","Urban","logical","",0,0,0,0,0,0,1,1,0
+"hhsize","Household size","integer","",0,0,0,0,1,0,0,0,0
+"depend","Dependency ratio","numeric","",0,0,0,0,1,0,0,0,0
+"imp_wat_rec","Improved water source","logical","",0,0,0,0,1,0,0,1,0
+"piped","Access to piped water","logical","",0,0,0,0,1,0,0,0,0
+"piped_to_prem","Access to piped water on premises","logical","",0,0,0,0,1,0,0,1,0
+"imp_san_rec","Improved sanitation facility ","logical","",0,0,0,0,1,0,0,1,0
+"solidcookfuel","Household uses solid cooking fuel","logical","",0,0,0,0,1,0,0,1,0
+"electricity","Access to electricity in dwelling","logical","",0,0,0,0,1,0,0,1,0
+"elechr_acc","Electricity availability","numeric","hr/day",0,0,0,0,1,0,0,0,0
+"cellphone","Ownership of a cell phone","logical","",0,0,0,1,1,0,0,1,0
+"computer","Ownership of a computer","logical","",0,0,0,1,1,0,0,0,0
+"internet","Household has access to internet (within or outside the house)","logical","",0,0,0,0,1,0,0,1,0
+"radio","Ownership of a radio","logical","",0,0,0,0,1,0,0,0,0
+"tv","Ownership of a tv","logical","",0,0,0,0,1,0,0,0,0
+"fridge","Ownership of a refrigerator","logical","",0,0,0,0,1,0,0,0,0
+"washmach","Ownership of a washing machine","logical","",0,0,0,0,1,0,0,0,0
+"stove","Ownership of a stove","logical","",0,0,0,0,1,0,0,0,0
+"fan","Ownership of an electric fan","logical","",0,0,0,0,1,0,0,1,0
+"ac","Ownership of an air conditioner","logical","",0,0,0,0,1,0,0,1,0
+"car","Ownership of a car","logical","",0,0,0,1,1,0,0,1,0
+"bcycle","Ownership of a bicycle","logical","",0,0,0,1,1,0,0,1,0
+"mcycle","Ownership of a motorcycle","logical","",0,0,0,1,1,0,0,1,0
+"boat","Ownership of a boat","logical","",0,0,0,1,1,0,0,0,0
+"rooms","Number of habitable rooms ","integer","",0,0,0,0,1,0,0,0,0
+"ownhouse","Own house","logical","",0,0,0,0,1,0,0,1,0
+"renthouse","Rent house","logical","",0,0,0,0,1,0,0,0,0
+"ownland","Ownership of residential land","logical","",0,0,0,0,1,0,0,1,0
+"agriland","Use agricultural land","logical","",0,0,0,0,1,0,0,1,0
+"ownagriland","Own agricultural land","logical","",0,0,0,0,1,0,0,1,0
+"road_density","Road density","numeric","m/km^2",0,0,0,0,0,0,1,0,0
+"pop_road_2km","Percent of population living within 2km of an all season road","numeric","%",0,0,0,0,0,0,1,0,0
+"ttime_city","Travel time to nearest urban centre","numeric","minutes",0,0,0,0,0,0,1,1,0
+"ttime_health","Motorized travel time to nearest health care facility","numeric","minutes",0,0,0,0,0,0,1,0,0
+"viirs_ntl","VIIRS nighttime lights brightness for survey year","numeric","nW/cm^2/sr",0,0,0,0,0,0,1,0,0
+"viirs_ntl_5y","Percent change in VIIRS nighttime lights brightness (5 years)","numeric","%",0,0,0,0,0,0,1,0,0
+"flood_pop_pct","Percent of population exposed to 1 in 100 year flood > 15 cm","numeric","%",0,0,0,0,0,0,1,0,0
+"built_area","Built up area  (H3 level 6)","numeric","km^2",0,0,0,0,0,0,1,0,0
+"area_h3_6","Area of spatial unit (H3 level 6)","numeric","km^2",0,0,0,0,0,0,1,0,0
+"area_h3_7","Area of spatial unit (H3 level 7)","numeric","km^2",0,0,0,0,0,0,1,0,0
+"dou_11_pop","Percent of population in very low density areas","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_12_pop","Percent of population in low density areas","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_13_pop","Percent of population in rural areas","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_21_pop","Percent of population in suburban areas","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_22_pop","Percent of population in semi-dense urban clusters","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_23_pop","Percent of population in dense urban clusters","numeric","%",0,0,0,0,0,0,1,0,0
+"dou_30_pop","Percent of population in urban centers","numeric","%",0,0,0,0,0,0,1,0,0
+"pop_2020","Population of spatial unit in 2020","numeric","people",0,0,0,0,0,0,1,0,0
+"pop_2020_density","Population density in 2020","numeric","people/km^2",0,0,0,0,0,0,1,0,0
+"pop_2020_f","Percent of population female","numeric","%",0,0,0,0,0,0,1,0,0
+"pop_2020_m","Percent of population male","numeric","%",0,0,0,0,0,0,1,0,0
+"t","Monthly temperature","numeric","°C",0,0,1,0,0,0,0,0,0
+"tn","Monthly daily minimum temperature","numeric","°C",0,0,1,0,0,0,0,0,0
+"tx","Monthly daily maximum temperature","numeric","°C",0,0,1,0,0,0,0,0,0
+"dtr","Monthly daily temperature range","numeric","°C",0,0,1,0,0,0,0,0,0
+"tnn","Monthly minimum of daily minimum temperature","numeric","°C",0,0,1,0,0,0,0,0,0
+"txx","Monthly maximum of daily maximum temperature","numeric","°C",0,0,1,0,0,0,0,0,0
+"tx35","Monthly extreme hot days","numeric","days",0,0,1,0,0,0,0,0,0
+"tx40","Monthly very extreme hot days","numeric","days",0,0,1,0,0,0,0,0,0
+"tr","Monthly tropical nights","numeric","days",0,0,1,0,0,0,0,0,0
+"r","Monthly precipitation","numeric","mm",0,0,1,0,0,0,0,0,0
+"r01","Monthly wet days","numeric","days",0,0,1,0,0,0,0,0,0
+"sdii","Monthly precipitation intensity","numeric","mm",0,0,1,0,0,0,0,0,0
+"rx1day","Monthly maximum 1-day precipitation","numeric","mm",0,0,1,0,0,0,0,0,0
+"rx5day","Monthly maximum 5-day precipitation","numeric","mm",0,0,1,0,0,0,0,0,0
+"r10","Monthly heavy precipitation days","numeric","days",0,0,1,0,0,0,0,0,0
+"r20","Monthly very heavy precipitation days","numeric","days",0,0,1,0,0,0,0,0,0
+"mrsos","Monthly soil moisture in upper soil portion","numeric","kg m-2",0,0,1,0,0,0,0,0,0
+"spi6","Monthly SPI-6 ","numeric","",0,0,1,0,0,0,0,0,0
+"spei6","Monthly SPEI-6","numeric","",0,0,1,0,0,0,0,0,0

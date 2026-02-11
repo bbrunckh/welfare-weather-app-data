@@ -16,8 +16,17 @@ data_path <- "data/"
 # path to WISE-APP variable list
 varlist_path <- "data/variable_list.csv"
 
-# set dlw token for downloading GMD data (from .Renviron for security)
-dlw_set_token(Sys.getenv("DLW_TOKEN"))
+# OPTIONAL path to existing survey list to be updated
+surveylist_path <- "data/survey_list.csv"
+
+# OPTIONAL choose specific GMD surveys to process (remove to process all)
+surveys <- tibble::tibble(
+  code = c("GNB", "GNB"),
+  year = c(2018L, 2021L)
+) 
+
+# set dlw token for downloading GMD data (use .Renviron for security)
+dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
 
   # to add dlw token to user's .Renviron: 
     # 1. get token from https://datalibweb2.worldbank.org (expires after 30 days)
@@ -25,22 +34,16 @@ dlw_set_token(Sys.getenv("DLW_TOKEN"))
     # 3. add line to environment file: DLW_TOKEN = "your_token"
     # 4. save and restart R session
 
-# OPTIONAL path to existing survey list to be updated
-surveylist_path <- "data/survey_list_old.csv"
-
-# OPTIONAL choose specific GMD surveys to process (leave empty to process all)
-surveys <- tibble::tibble(
-  code = c("GNB", "GNB"),
-  year = c(2018L, 2021L)
-) 
-# surveys <- NULL # to process all surveys
-
 #------------------------------------------------------------------------------#
 # load libraries
 library(dlw)
 options(dlw.local_dir = "~/dlw/")
+options(dlw.verbose = FALSE)
+library(DBI)
+library(duckdb)
 library(duckdbfs)
 library(dplyr)
+library(pipr) # used to get poverty rates from PIP for validation checks
 
 # load helper functions
 source("code/utils.R")
@@ -72,7 +75,6 @@ spat_cat <- dlw_server_catalog("GMD")[
     by = .(Year, Country)][
       , .SD[toupper(Veralt) == max(toupper(Veralt), na.rm = TRUE)],
       by = .(Year, Country)][
-        , fname := substr(FileName, 1, nchar(FileName) - 8)][
           order(Country)]
 
 # Filter to specific surveys if provided
@@ -83,6 +85,12 @@ if (!missing(surveys) && !is.null(surveys)) {
     stop("No matching surveys found in GMD catalog for provided survey list.")
   }
 }
+#------------------------------------------------------------------------------#
+# get country names from PIP
+pip_countries <- get_aux("countries")
+
+#------------------------------------------------------------------------------#
+
 # initialize error log
 errors <- c()
 
@@ -93,8 +101,11 @@ for (n in 1:nrow(spat_cat)){
 
   # Survey info
   code <- spat_cat$Country_code[n]
-  year <- spat_cat$Survey_year[n]
+  year <- as.integer(spat_cat$Survey_year[n])
   survname <- spat_cat$Survey_acronym[n]
+  economy <- pip_countries |> filter(country_code == !!code) |> pull(country_name)
+  vermast <- spat_cat$Vermast[n]
+  veralt <- spat_cat$Veralt[n]
 
   message(paste0("Processing ", code, " ", year, " ", survname))
 
@@ -106,13 +117,10 @@ for (n in 1:nrow(spat_cat)){
     next
   }
 
-  # Base file name for GMD modules (SPAT, ALL/GPWG, H3)
-  fname <- substr(spat_cat$FileName[n], 1, nchar(spat_cat$FileName[n]) - 8)
-
   # Try to load SPAT module, otherwise log error and skip
   error_occurred <- FALSE
   tryCatch({
-      spat <- dlw_get_data(code, paste0(fname, "SPAT.dta"))
+    spat <- dlw_get_gmd(code, year, module = "SPAT", vermast = vermast, veralt = veralt)
   }, error = function(e) {
     errors <<- c(errors, paste0("Failed to get SPAT module for ", code, " ", year))
     message(errors[[length(errors)]])
@@ -132,226 +140,202 @@ for (n in 1:nrow(spat_cat)){
   # Try to load GMD ALL module, otherwise GPWG module, otherwise log error and skip
   error_occurred <- FALSE
   tryCatch({
-    gmd <- dlw_get_data(code, paste0(fname, "ALL.dta"))
+    gmd <- dlw_get_gmd(code, year, module = "ALL", vermast = vermast, veralt = veralt)
+    message("GMD ALL module loaded successfully.")
   }, error = function(e1) {
     # Use GPWG if error
     tryCatch({
-      gmd <- dlw_get_data(code, paste0(fname, "GPWG.dta"))
+      gmd <- dlw_get_gmd(code, year, module = "GPWG", vermast = vermast, veralt = veralt)
+      message("GMD GPWG module loaded successfully.")
     }, error = function(e2) {
       errors <<- c(errors, paste0("Failed to get ALL or GPWG module for ", code, " ", year))
       message(errors[[length(errors)]])
       error_occurred <<- TRUE
     })
   })
-  if (error_occurred) { next } else {
-    message("GMD ALL or GPWG module loaded successfully.")
-  }
+  if (error_occurred) { next } 
 
-  # to duckdb for processing
-  survey_db <- as_dataset(gmd)
+  # to duckdb for faster processing
+  survey_db <- as_tibble(gmd) |> as_dataset()
 
   #----------------------------------------------------------------------------#
   # Harmonize GMD variables
 
-  # construct empty GMD variables if not included in dataset (to avoid errors in later processing steps)
+  # construct empty GMD variables needed if they are not in data (to avoid errors in later processing steps)
+  gmd_vars <- c(
+    "code", "year", "strata", "psu", "hhid", "pid", 
+    "hhsize", "weight", "welfare", "male", "age", "urban",
+    "educy", "educat7", "educat5", "educat4", "literacy",
+    "laborincome", "t_wage_total", "whours", "wmonths", "lstatus", "empstat",
+    "industrycat4", "industrycat10", "industry_orig",
+    "occup", "occup_orig", "njobs", "healthins", "socialsec",
+    "internet", "ownhouse","rooms", "cooksource",
+    "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", 
+    "electricity", "cellphone", "computer", "internet", "radio", "tv", "fridge",
+    "washmach", "stove", "fan", "ac", "car", "bcycle", "mcycle", "boat",
+    "ownland", "agriland", "area_agriland", "ownagriland"
+  )
+
   gmd_add <- setdiff(gmd_vars, colnames(survey_db))
   if (length(gmd_add)>0){
   survey_db <- survey_db |>
     mutate(!!!setNames(rep(list(NA), length(gmd_add)), gmd_add))
   }
   
-  # harmonize different names for the same variable, 
-   survey_db <- survey_db |> 
-     mutate(code = if_else(is.na(code), countrycode, code),
-            hhid = as.character(hhid),
-            hhsize = if_else(is.na(hhsize),hsize,hhsize),
-            weight = if_else(is.na(weight),weight_p,weight),
-            subnatid1 = if_else(is.na(subnatid1),subnatid,subnatid1)) |>
-     # drop if missing welfare or weight or urban
-     filter(!is.na(welfare), !is.na(weight), !is.na(urban))
+  # harmonize different names for the same variable
+  survey_db <- survey_db |> 
+    mutate(code = if_else(is.na(code), countrycode, code),
+          hhid = as.character(hhid),
+          hhsize = if_else(is.na(hhsize),hsize,hhsize),
+          weight = if_else(is.na(weight),weight_p,weight)) |>
+    # drop if missing welfare or weight
+    filter(!is.na(welfare), !is.na(weight)) 
 
   #----------------------------------------------------------------------------#
   # Prepare individual level data for WISE-APP
 
-    # IDs and dates
-  
-    # Demographics
-    survey_db <- survey_db |>
-      mutate(agecat = case_when(
-        age < 15 ~ "0-14",
-        age >= 15 & age < 25 ~ "15-24",
-        age >= 25 & age < 35 ~ "25-34",
-        age >= 35 & age < 45 ~ "35-44",
-        age >= 45 & age < 55 ~ "45-54",
-        age >= 55 & age < 65 ~ "55-64",
-        age >= 65 ~ "65+"))
+  survey_db <- survey_db |>
+    mutate(
 
-    # Education/Literacy (missing = NA)
-    survey_db <- survey_db |>
-      mutate(
-        educ_com1 = case_when(
-          educat7>=3 ~ 1, educat5>=3 ~ 1, educat4>=2 ~ 1, 
-          !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0),
-        educ_com2 = case_when(
-          educat7>=3 ~ 1, educat5>=4 ~ 1, educat4>=5 ~ 1, 
-          !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0),
-        educ_com3 = case_when(
-          educat7>=4 ~ 1, educat5>=5 ~ 1,  educat4>=6 ~ 1, 
-          !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0))
+    # ID variables
+    code = !!code,
+    survname = !!survname,
+    economy = !!economy,
 
-    # Employment (missing = NA)
-    survey_db <- survey_db |>
-      mutate(
-        employed = case_when(lstatus == 1 ~ 1, !is.na(lstatus) ~ 0),
-        unemployed = case_when(lstatus == 2 ~ 1, !is.na(lstatus) ~ 0),
-        notinlf = case_when(lstatus == 3 ~ 1, !is.na(lstatus) ~ 0),
-        employed_year = case_when(lstatus_year == 1 ~ 1, !is.na(lstatus_year) ~ 0),
-        unemployed_year = case_when(lstatus_year == 2 ~ 1, !is.na(lstatus_year) ~ 0),
-        notinlf_year = case_when(lstatus_year == 3 ~ 1, !is.na(lstatus_year) ~ 0),
-        selfemployed = case_when(empstat == 4 ~ 1, !is.na(empstat) ~ 0),
-        selfemployed_year = case_when(empstat_year == 4 ~ 1, !is.na(empstat_year) ~ 0),
-        agriculture = case_when(industrycat4 == 1 ~ 1, !is.na(industrycat4) ~ 0),
-        industry = case_when(industrycat4 == 2 ~ 1, !is.na(industrycat4) ~ 0),
-        services = case_when(industrycat4 == 3 ~ 1, !is.na(industrycat4) ~ 0),
-        agriculture_year = case_when(industrycat4_year == 1 ~ 1, !is.na(industrycat4_year) ~ 0),
-        industry_year = case_when(industrycat4_year == 2 ~ 1, !is.na(industrycat4_year) ~ 0),
-        services_year = case_when(industrycat4_year == 3 ~ 1, !is.na(industrycat4_year) ~ 0))
-  
-    # Assets - no recoding needed
-  
-    # Outcomes for individual level data
-    survey_db <- survey_db |>
-      mutate(
-        welfare = welfare/365, # convert to daily welfare for poverty calculations
-        wage = t_wage_total = t_wage_total/365, # convert to daily wages 
-        laborincome = laborincome/365, # convert to daily labor income
-      ) 
-  
-  
-      # Household characteristics (missing = NA)
-      survey_db <- survey_db |>
-        mutate(
-          solidcookfuel = case_when(cooksource == 1 || cooksource == 3 ~ 1, !is.na(cooksource) ~ 0),
-          internet_access = case_when(internet <= 3 ~ 1, internet ==4 ~ 0),
-          ownhouse_secure = case_when(ownhouse == 1 ~ 1, !is.na(ownhouse) ~ 0),
-          renthouse = case_when(ownhouse == 2 ~ 1, !is.na(ownhouse) ~ 0))
+    # Outcomes
 
-    # Area level variables (from SPAT)
-  
-      # prepare SPAT data
-      spat_db <- as_dataset(spat) |>
-        mutate(hhid = as.character(hhid)) |>
-        select(-survname, -urban, -ends_with(c("_m1", "_sy", "_ref")))
+    # Welfare, convert to daily (LCU per capita)
+    welfare = welfare/365, 
     
-      # merge SPAT data
-      survey_db <- survey_db |>
-        select(-int_month, -int_year) |>
-        left_join(survey_db, spat_db) 
+    # Labor market outcomes, not working age = NA
+    across(c("laborincome", "t_wage_total", "lstatus", "empstat", "industrycat4"), 
+      ~ if_else(age>=15 & age <=64, ., NA)), 
+    laborincome = laborincome/365, # convert to daily labor income (LCU)
+    wage  = t_wage_total/365, # convert to daily wage (LCU)
+    employed = case_when(lstatus == 1 ~ 1, !is.na(lstatus) ~ 0), # missing = NA
+    unemployed = case_when(lstatus == 2 ~ 1, !is.na(lstatus) ~ 0), # missing = NA
+    notinlf = case_when(lstatus == 3 ~ 1, !is.na(lstatus) ~ 0), # missing = NA
+    selfemployed = case_when(empstat == 4 ~ 1, !is.na(empstat) ~ 0), # missing = NA
+    agriculture = case_when(industrycat4 == 1 ~ 1, !is.na(industrycat4) ~ 0), # missing = NA
+    industry = case_when(industrycat4 == 2 ~ 1, !is.na(industrycat4) ~ 0), # missing = NA
+    services = case_when(industrycat4 == 3 ~ 1, !is.na(industrycat4) ~ 0), # missing = NA
+  
+    # Demographics (missing = NA)
+    agecat = case_when(
+      age < 15 ~ "0-14",
+      age >= 15 & age < 25 ~ "15-24",
+      age >= 25 & age < 35 ~ "25-34",
+      age >= 35 & age < 45 ~ "35-44",
+      age >= 45 & age < 55 ~ "45-54",
+      age >= 55 & age < 65 ~ "55-64",
+      age >= 65 ~ "65+"),
+          
+    # Education/Literacy (missing = NA, < 15 years = NA))
+    across(c("educat7", "educat5", "educat4", "educy"), ~ if_else(age<15, NA, .)),
+    educ_com1 = case_when(educat7>=3 ~ 1, educat5>=3 ~ 1, educat4>=2 ~ 1, 
+      !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0),
+    educ_com2 = case_when(educat7>=3 ~ 1, educat5>=4 ~ 1, educat4>=5 ~ 1, 
+      !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0),
+    educ_com3 = case_when(educat7>=4 ~ 1, educat5>=5 ~ 1,  educat4>=6 ~ 1, 
+      !is.na(educat7) | !is.na(educat5) | !is.na(educat4) ~ 0),
+
+    # Employment (not working age = NA i.e. <15 or >64 years)
+    across(c("whours", "wmonths", "industrycat10", "industry_orig", 
+    "occup", "occup_orig", "njobs"), ~ if_else(age>=15 & age <=64, ., NA)),
+
+    # Health insurance and social security (no recoding)
+    
+    # Assets (no recoding)
+  
+    # Household characteristics
+    solidcookfuel = case_when(cooksource == 1 || cooksource == 3 ~ 1, !is.na(cooksource) ~ 0),
+    internet = case_when(internet <= 3 ~ 1, internet ==4 ~ 0),
+    ownhouse = case_when(ownhouse == 1 ~ 1, !is.na(ownhouse) ~ 0),
+    renthouse = case_when(ownhouse == 2 ~ 1, !is.na(ownhouse) ~ 0)
+    )
+  
+  # Area level variables (from SPAT)
+
+    # prepare SPAT data
+    spat_db <- as_tibble(spat) |> as_dataset() |>
+      mutate(hhid = as.character(hhid)) |>
+      select(-survname, -urban, -ends_with(c("_m1", "_sy", "_ref")))
+  
+    # merge SPAT data
+    survey_db <- survey_db |>
+      select(-int_month, -int_year) |>
+      left_join(spat_db, by = c("code", "year", "hhid"))
   
   # Tidy individual level data
-  wise_ind <- survey_db |>
-    # keep only WISE-APP variables
-    select(any_of(pull(varlist,name))) |>
-    # ensure variable types match variable list
-    mutate(across(any_of(num_vars), as.numeric),
-           across(any_of(log_vars), as.logical),
-           across(any_of(int_vars), as.integer),
-           across(any_of(fact_vars), as.factor),
-           across(any_of(char_vars), as.character),
-           across(any_of(date_vars), as.Date)) |>
-    collect()
-  
-  # Validation checks 
+  wise_ind <- tidy_vars(survey_db, varlist)
+
+  # Check unique IDs, skip if duplicates
+  if (!check_unique_ids(wise_ind, c("pid", "hhid"), paste(code, year))) {
+    errors <- c(errors, paste0("pid not unique in ", code, " ", year))
+    next
+  }
     
-    # Check no duplicate IDs at individual level
-    if (any(duplicated(pull(wise_ind, pid)))) {
-      errors <- c(errors, paste0("pid not unique in ", code, " ", year))
-      message(errors[[length(errors)]])
-      next
-    }
-  
-    # Check poverty rate vs PIP, log error if >0.1pp difference but don't skip
-
-      # $3.00 poverty rate in PIP
-      pip_poor_300ln <- pipr::get_stats(code, year) |> pull(headcount)
-
-      # $3.00 poverty rate from survey
-      # need to calculate this properly with cpi and ppp conversion
-      svy_poor_300ln <- weighted.mean(wise_ind$poor_300ln, wise_ind$weight)
-  
-    if (round(pip_poor_300ln, 1) != round(svy_poor_300ln, 1)){
-      errors <- c(errors, paste0("$3.00 poverty rate in individual data = ",
-       svy_poor_300ln ," vs PIP = ", pip_poor_300ln, "for ", code, " ", year))
-      message(errors[[length(errors)]])
-    }
-
+  # Check poverty rate, log error if mismatch (but don't skip)
+  if (!check_poverty_rate(wise_ind, code, year)) {
+    errors <- c(errors, paste0("$3.00 poverty rate mismatch for ", code, " ", year))
+  }
   # Save individual level data
-  write_dataset(wise_ind, paste0(data_path, code, "_", year, "_ind.parquet"))
+  write_dataset(wise_ind, paste0(data_path, code, "_", year, "_",survname,"_ind.parquet"))
   
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
-    
+
+  hh_vars <- c("code", "year", "survname", "economy", "hhid", "hhsize", "urban",
+  "internet", "ownhouse","rooms", "cooksource", "imp_wat_rec", "piped", 
+  "piped_to_prem", "imp_san_rec", "electricity")
+
   # Summarise variables at household level
-   survey_db <- survey_db |>
-     summarise(
-       across(c("welfare"), # use mean welfare (simulated GMD data has >1 per hhid)
-              ~ mean(.x, na.rm = TRUE)), 
-       across(c("t_wage_total", "laborincome", "weight"),
-              ~ sum(.x, na.rm = TRUE)),
-       across(c("cellphone"),
-              ~ max(.x, na.rm = TRUE)),
-       across(c("literacy", "educat7", "educat5", "educat4"),
-              ~ max(.x[age>=15], na.rm = TRUE)),
-       educy = mean(educy[age>=15], na.rm = TRUE),
-       depend = if_else(sum(age>=15 & age <65, na.rm = TRUE)>0,
-                        (sum(age<15, na.rm = TRUE) + sum(age>=65, na.rm = TRUE))/sum(age>=15 & age <65, na.rm = TRUE),
-                        NA),
-       across(c("male", "lstatus", "empstat", "ocusec", "industrycat10",
-                "industrycat4", "occup", "lstatus_year", "empstat_year", 
-                "ocusec_year", "industrycat10_year", "industrycat4_year", 
-                "occup_year", "njobs"),
-              ~ first(.x[relationharm==1])),
-     .by = all_of(setdiff(gmd_hh_vars, "welfare"))) |> ungroup()
-   
-   
-  # Tidy household level data
-  wise_hh <- survey_db |>
-    # keep only WISE-APP variables
-    select(any_of(pull(varlist,name))) |>
-    # ensure variable types match variable list
-    mutate(across(any_of(c(integer_cols, cat_cols, logical_cols)), as.integer),
-           across(any_of(numeric_cols), as.numeric)) |>
-    collect() |> 
-    mutate(across(any_of(string_cols), as.character))
-
-   
-  # Validation checks
+  survey_db_hh <- survey_db |>
+    summarise(
+    # mean across household members (mean for welfare since simulated GMD data has >1 per hhid)
+    across(c("welfare", "educy"), ~ mean(.x, na.rm = TRUE)), 
+    # labor market outcomes (per working age member)
+    across(c("laborincome", "wage", "whours", "wmonths"), 
+    ~ sum(.x, na.rm = TRUE) / sum(age >= 15 & age <= 64, na.rm = TRUE), .names = "{.col}_hh"),
+    # sum across household members          
+    across(c("weight"), ~ sum(.x, na.rm = TRUE)),
+    # max across household members for education (any)         
+    across(c("literacy", "educat7", "educat5", "educat4", "educ_com1", "educ_com2", "educ_com3"),
+    ~ max(.x, na.rm = TRUE), .names = "{.col}_hh"),
+    # max across household members (any, include assets here just in case)
+    across(c("healthins", "socialsec", "cellphone", "computer", "radio", "tv", "fridge",
+    "washmach", "stove", "fan", "ac", "car", "bcycle", "mcycle", "boat",
+    "ownland", "agriland", "ownagriland"), ~ max(.x, na.rm = TRUE)),
+    # dependency ratio
+    depend = if_else(sum(age>=15 & age <65, na.rm = TRUE)>0,
+                    (sum(age<15, na.rm = TRUE) + sum(age>=65, na.rm = TRUE))/sum(age>=15 & age <65, na.rm = TRUE),
+                    NA),
+      .by = all_of(hh_vars)) |> 
+    rename(educy_hh = educy) 
   
-    # Check no duplicate IDs at household level
-    if (any(duplicated(pull(wise_hh, hhid)))) {
-      errors <- c(errors, paste0("hhid not unique in ", code, " ", year))
-      message(errors[[length(errors)]])
-      next
-    }
+  # Tidy household level data
+  wise_hh <- tidy_vars(survey_db_hh, varlist)
 
-    # Check $3.00 poverty rate vs PIP still ok, log error and skip if >0.1pp difference
-    pip_poor_300ln <- get_stats(code, year) |> pull(headcount)
-    svy_poor_300ln <- weighted.mean(wise_hh$poor_300)
-
-    if (round(pip_poor_300ln, 1) != round(svy_poor_300ln, 1)){
-      errors <- c(errors, paste0("$3.00 poverty rates in household data does not match PIP for ", code, " ", year))
-      message(errors[[length(errors)]])
-      next
-    }
+  # Check unique IDs, skip if duplicates
+  if (!check_unique_ids(wise_hh, "hhid", paste(code, year))) {
+    errors <- c(errors, paste0("hhid not unique in ", code, " ", year))
+    next
+  }
+    
+  # Check poverty rate, log error if mismatch (but don't skip)
+  if (!check_poverty_rate(wise_hh, code, year)) {
+    errors <- c(errors, paste0("$3.00 poverty rate mismatch for ", code, " ", year))
+  }
 
   # Save household level data
-  write_dataset(wise_hh, paste0(data_path, code, "_", year, "_hh.parquet"))
-
+  write_dataset(wise_hh, paste0(data_path, code, "_", year, "_",survname,"_hh.parquet"))
+  
   #----------------------------------------------------------------------------#
   # Try to load H3 module, otherwise log error and skip
   error_occurred <- FALSE
   tryCatch({
-      h3 <- dlw_get_data(code, paste0(fname, "H3.dta"))
+    h3 <- dlw_get_gmd(code, year, module = "H3", vermast = vermast, veralt = veralt)
+    message("H3 module loaded successfully.")
   }, error = function(e) {
     errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
     message(errors[[length(errors)]])
@@ -360,24 +344,20 @@ for (n in 1:nrow(spat_cat)){
   if (error_occurred) {next} 
 
   # Prepare H3 level data for WISE-APP
-  wise_h3 <- as_dataset(h3) |>
+  wise_h3 <- as_tibble(h3) |> as_dataset() |>
     # use H3Index (uint64_t) representation, level 6 (to merge weather data)
     mutate(h3 = h3_string_to_h3(h3_6)) |> 
-    select(any_of(pull(varlist,name))) |>
-    mutate(across(any_of(c(integer_cols, cat_cols, logical_cols)), as.integer),
-           across(any_of(numeric_cols), as.numeric)) |>
-    collect() |> 
-    mutate(across(any_of(string_cols), as.character))
+    tidy_vars(varlist)
 
   # Save H3 level data
-  write_dataset(wise_h3, paste0(data_path, code, "_", year, "_h3.parquet"))
+  write_dataset(wise_h3, paste0(data_path, code, "_", year, "_",survname,"_h3.parquet"))
 
 #------------------------------------------------------------------------------#
 # Update survey list
   for (level in c("ind", "hh")){
-    survey_list = bind_rows(survey_list,
+    surveylist = bind_rows(surveylist,
       tibble(
-        countryname = countryname, 
+        economy = economy, 
         code = code, 
         survname = survname,
         year = year, 
@@ -387,44 +367,18 @@ for (n in 1:nrow(spat_cat)){
       )
     )
   }
-
+message(paste0("✓  ",code, " ", year, " ", survname, " processed successfully with ", nrow(wise_ind), " individual records and ", nrow(wise_hh), " household records."))
 } # end of survey loop
 
-# fix country names in survey list
-survey_list <- survey_list |>
-  mutate(countryname = if_else(code =="CIV", "Côte d`Ivoire", countryname))
+#------------------------------------------------------------------------------#
 
 # Save survey list
-write.csv(survey_list, paste0(data_path, "survey_list.csv"), row.names = FALSE)
+write.csv(surveylist, paste0(data_path, "survey_list.csv"), row.names = FALSE)
 
 # Save variable list to data folder
-write.csv(variable_list, paste0(data_path, "variable_list.csv"), row.names = FALSE)
+write.csv(varlist, paste0(data_path, "variable_list.csv"), row.names = FALSE)
 
-# Save error log (if any errors)
+# Save error log (if any errors) to data folder
 if (length(errors) > 0){
   write.csv(errors, paste0(data_path, "GMD_surveys_errors.csv"), row.names = FALSE)
 }
-
-#------------------------------------------------------------------------------#
-# WISE-APP variable list
-
-gmd_vars <- c(
-  filter(varlist, !is.na(ALL)) |> pull(`gmd varname`),
-  filter(varlist, !is.na(`gmd altname`)) |> pull(`gmd altname`))
-
-gmd_hh_vars <- filter(
-  varlist, !is.na(wiseapp) & !is.na(ALL) & is.na(`hh aggregation`)) |> 
-  pull(varname)
-
-wise_vars <- filter(varlist, !is.na(wiseapp)) |> 
-  select(wiseapp, varname, label, datatype)
-
-integer_cols <- filter(wise_vars, datatype == "Integer") |> pull(varname)
-numeric_cols <- filter(wise_vars, datatype == "Numeric") |> pull(varname)
-logical_cols <- filter(wise_vars, datatype == "Binary") |> pull(varname)
-cat_cols <- filter(wise_vars, datatype == "Categorical") |> pull(varname)
-string_cols <- filter(wise_vars, datatype == "String") |> pull(varname)
-  
-  # # drop empty columns
-  # survey_clean <- survey_clean |>
-  #   select(where(~ !((all(is.na(.))) || is.character(.) && all(is.na(.) | . == ""))))
