@@ -20,10 +20,7 @@ varlist_path <- "data/variable_list.csv"
 # surveylist_path <- "data/survey_list.csv"
 
 # OPTIONAL choose specific GMD surveys to process (otherwise will process all)
-# surveys <- tibble::tibble(
-#   code = c("GNB", "GNB"),
-#   year = c(2018L, 2021L)
-# ) 
+# surveys <- tibble::tibble(code = c("IND"),year = c(2021L)) 
 
 # set dlw token for downloading GMD data (use .Renviron for security)
 dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
@@ -42,6 +39,7 @@ library(DBI)
 library(duckdb)
 library(duckdbfs)
 library(dplyr)
+library(readr)
 library(pipr) # used to get poverty rates from PIP for validation checks
 
 # load helper functions
@@ -137,6 +135,20 @@ for (n in 1:nrow(spat_cat)){
     next
   } else message("SPAT module contains interview month for majority of households.")
 
+  # Try to load H3 module, otherwise log error and skip
+  error_occurred <- FALSE
+  tryCatch({
+    h3 <- dlw_get_gmd(code, year, module = "H3", vermast = vermast, veralt = veralt)
+    message("H3 module loaded successfully.")
+  }, error = function(e) {
+    errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
+    message(errors[[length(errors)]])
+    error_occurred <<- TRUE
+  })
+  if (error_occurred) {next} else {
+    message("H3 module loaded successfully.")
+  }
+
   # Try to load GMD ALL module, otherwise GPWG module, otherwise log error and skip
   error_occurred <- FALSE
   tryCatch({
@@ -153,7 +165,7 @@ for (n in 1:nrow(spat_cat)){
       error_occurred <<- TRUE
     })
   })
-  if (error_occurred) { next }
+  if (error_occurred) {next}
 
   # to duckdb for faster processing
   survey_db <- as_tibble(gmd) |> as_dataset()
@@ -163,8 +175,7 @@ for (n in 1:nrow(spat_cat)){
 
   # construct empty GMD variables needed if they are not in data (to avoid errors in later processing steps)
   gmd_vars <- c(
-    "year", "strata", "psu", "hhid", "pid", "int_year", "int_month", 
-    "hhsize", "weight", "welfare", "male", "age", "urban",
+    "strata", "psu", "hhsize", "weight", "welfare", "male", "age", "urban",
     "educy", "educat7", "educat5", "educat4", "literacy",
     "laborincome", "t_wage_total", "whours", "wmonths", "lstatus", "empstat",
     "industrycat4", "industrycat10", "industry_orig",
@@ -223,8 +234,9 @@ for (n in 1:nrow(spat_cat)){
 
     # ID variables
     code = !!code,
-    survname = !!survname,
     economy = !!economy,
+    year = !!year,
+    survname = !!survname,
 
     # Outcomes
 
@@ -287,12 +299,12 @@ for (n in 1:nrow(spat_cat)){
   
     # merge SPAT data
     survey_db <- survey_db |>
-      select(-int_month, -int_year) |>
+      select(-any_of(c("int_month", "int_year"))) |>
       left_join(spat_db, by = c("code", "year", "hhid"))
   
   # check if data is actually individual level - does pid exist? 
     # if not, just prepare household level data
-  if (!"pid" %in% colnames(survey_db)) {
+  if ("pid" %in% colnames(survey_db)) {
       
     # Tidy individual level data
     wise_ind <- tidy_vars(survey_db, varlist)
@@ -305,7 +317,7 @@ for (n in 1:nrow(spat_cat)){
       
     # Check poverty rate, log error if mismatch (but don't skip)
     if (!check_poverty_rate(wise_ind, code, year)) {
-      errors <- c(errors, paste0("$3.00 poverty rate mismatch for ", code, " ", year))
+      errors <- c(errors, paste0("$3.00 poverty rate does not match PIP for ", code, " ", year))
     }
     # Save individual level data
     write_dataset(wise_ind, paste0(data_path, code, "_", year, "_",survname,"_ind.parquet"))
@@ -359,18 +371,6 @@ for (n in 1:nrow(spat_cat)){
   write_dataset(wise_hh, paste0(data_path, code, "_", year, "_",survname,"_hh.parquet"))
   
   #----------------------------------------------------------------------------#
-  # Try to load H3 module, otherwise log error and skip
-  error_occurred <- FALSE
-  tryCatch({
-    h3 <- dlw_get_gmd(code, year, module = "H3", vermast = vermast, veralt = veralt)
-    message("H3 module loaded successfully.")
-  }, error = function(e) {
-    errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
-    message(errors[[length(errors)]])
-    error_occurred <<- TRUE
-  })
-  if (error_occurred) {next} 
-
   # Prepare H3 level data for WISE-APP
   wise_h3 <- as_tibble(h3) |> as_dataset() |>
     # use H3 Index level 6 (to merge weather data)
@@ -381,9 +381,9 @@ for (n in 1:nrow(spat_cat)){
   write_dataset(wise_h3, paste0(data_path, code, "_", year, "_",survname,"_h3.parquet"))
 
 #------------------------------------------------------------------------------#
-# Update survey list
+# Update survey list 
   levels_to_add <- c("hh")
-  if (exists("wise_ind")) {levels_to_add <- c("ind", "hh")}
+  if ("pid" %in% colnames(survey_db)) {levels_to_add <- c("ind", "hh")}
   for (level in levels_to_add) {
     obs <- switch(level, 
       "ind" = length(pull(wise_ind, code)), 
@@ -406,12 +406,13 @@ message(paste0("✓  ", code, " ", year, " ", survname, " processed successfully
 #------------------------------------------------------------------------------#
 
 # Save survey list
-write.csv(surveylist, paste0(data_path, "survey_list.csv"), row.names = FALSE)
+write_csv(surveylist, paste0(data_path, "survey_list.csv"))
 
 # Save variable list to data folder
-write.csv(varlist, paste0(data_path, "variable_list.csv"), row.names = FALSE)
+write_csv(varlist, paste0(data_path, "variable_list.csv"))
 
 # Save error log (if any errors) to data folder
 if (length(errors) > 0){
-  write.csv(errors, paste0(data_path, "GMD_surveys_errors.csv"), row.names = FALSE)
+  write_csv(tibble("Error" = errors), 
+    paste0(data_path, "GMD_surveys_errors.csv"))
 }

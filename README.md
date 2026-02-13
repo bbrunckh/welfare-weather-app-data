@@ -43,7 +43,7 @@ The scripts in the `code/` folder prepare data inputs for WISE-APP. They clean, 
     -   `obs`: Number of observations
     -   `source`: Data source (e.g., "GMD")
 
-2. `era5land_weather.R` produces H3 level data files with weather variables from ERA5-Land. 
+2. `code/era5land_weather.R` produces H3 level data files with weather variables from ERA5-Land. 
 
 3. `code/cpi_ppp.R` saves the latest Consumer Price Index (CPI) values and Purchasing Power Parity (PPP) values used by the World Bank to compute poverty and inequality statistics to `cpi_ppp.csv`. WISE-APP uses these to convert monetary variables in surveys (such as welfare) to 2021 PPP for comparability across survey years and countries.
 

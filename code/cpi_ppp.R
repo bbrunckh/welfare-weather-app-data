@@ -15,7 +15,9 @@ data_path <- "data/"
 # load libraries
 library(pipr)
 library(dplyr)
+library(readr)
 
+#------------------------------------------------------------------------------#
 # dowload latest CPI and 2021 PPP conversion factors from World Bank PIP
 cpi <- pipr::get_aux("cpi")
 ppp <- pipr::get_aux("ppp")
@@ -29,4 +31,4 @@ cpi_ppp <- cpi |>
   select(code = country_code, year, data_level, cpi, ppp2021)
 
 # save output
-write.csv(cpi_ppp, paste0(data_path, "cpi_ppp.csv"), row.names = FALSE)
+write_csv(cpi_ppp, paste0(data_path, "cpi_ppp.csv"))
