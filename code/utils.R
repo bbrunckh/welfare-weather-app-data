@@ -380,7 +380,7 @@ tidy_vars <- function(df, varlist) {
       select(where(~ . == 1)) |>
       colnames()
 
-  df_tidy |> select(all_of(cols_to_keep)) 
+  df_tidy |> select(all_of(cols_to_keep), any_of(date_vars)) 
 }
 
 ##' Check for Duplicate IDs in Dataset

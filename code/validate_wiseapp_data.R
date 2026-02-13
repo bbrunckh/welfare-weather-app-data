@@ -10,7 +10,9 @@ data_path <- "data/"
 
 #------------------------------------------------------------------------------#
 # Load required libraries
-library(nanoparquet)
+library(DBI)
+library(duckdb)
+library(duckdbfs)
 library(dplyr)
 
 # load helper functions
@@ -56,21 +58,21 @@ for (i in 1:nrow(surveylist)) {
   }
   # check survey data files have minimum required variables
   required_vars <- c("code", "economy", "year", "survname", "int_year", "int_month", "loc_id")
-  survey_data <- read_parquet(svy_data_path) 
+  survey_data <- open_dataset(svy_data_path) 
   missing_vars <- setdiff(required_vars, colnames(survey_data))
   if (length(missing_vars) > 0) {
     stop("Data file for ", surveylist$code[i], " is missing required variables: ", paste(missing_vars, collapse = ", "))
   }
   
   # check survey data files have at least one variable with outcome = 1 in varlist
-  outcome_vars <- varlist$variable[varlist$outcome == 1]
+  outcome_vars <- varlist$name[varlist$outcome == 1]
   if (!any(outcome_vars %in% colnames(survey_data))) {
     stop("Data file for ", surveylist$code[i], " does not contain any outcome variables specified in variable list.")
   } 
 
   # check H3 data files have minimum required variables
   required_h3_vars <- c("code", "loc_id", "h3")
-  h3_data <- read_parquet(h3_data_path)
+  h3_data <- open_dataset(h3_data_path)
   missing_h3_vars <- setdiff(required_h3_vars, colnames(h3_data))
   if (length(missing_h3_vars) > 0) {
     stop("H3 data file for ", surveylist$code[i], " is missing required variables: ", paste(missing_h3_vars, collapse = ", ")) 
@@ -88,13 +90,13 @@ for (c in codes) {
   }
   # check weather data files have minimum required variables
   required_weather_vars <- c("h3", "timestamp")
-  weather_data <- read_parquet(weather_data_path)
+  weather_data <- open_dataset(weather_data_path)
   missing_weather_vars <- setdiff(required_weather_vars, colnames(weather_data))
   if (length(missing_weather_vars) > 0) {
     stop("Weather data file for ", c, " is missing required variables: ", paste(missing_weather_vars, collapse = ", ")) 
   }
   #check at least one weather variable is present in weather data file
-  weather_vars <- varlist$variable[varlist$weather == 1]
+  weather_vars <- varlist$name[varlist$weather == 1]
   if (!any(weather_vars %in% colnames(weather_data))) {
     stop("Weather data file for ", c, " does not contain any weather variables specified in variable list.")
   } 

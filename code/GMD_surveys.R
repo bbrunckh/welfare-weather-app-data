@@ -313,7 +313,7 @@ for (n in 1:nrow(spat_cat)){
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
 
-  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", 
+  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", "loc_id", 
   "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
   "cooksource", "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", "electricity")
 

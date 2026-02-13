@@ -57,15 +57,14 @@ for (n in 1:length(code_list)){
   code <- code_list[n] 
   message(paste0("Processing weather data for: ", code)) 
 
-  # skip if data already exists for this country 
+  # # skip if data already exists for this country 
   if (file.exists(paste0(data_path, code, "_weather.parquet"))) { 
     message(paste0("Weather data file already exists for: ", code, ". Skipping.")) 
     next 
   }
   
   # If path to pre-processed ERA5-Land H3-indexed parquet files is provided and file exists
-  if (exists("era5land_path") && !is.null(era5land_path) && 
-    file.exists(paste0(era5land_path, code, "_era5land_h3_6.parquet"))) {
+  if (file.exists(paste0(era5land_path, code, "_era5land_h3_6.parquet"))) {
       message(paste0("Using pre-processed ERA5-Land H3-indexed parquet file for: ", code))
     
       # load weather data
