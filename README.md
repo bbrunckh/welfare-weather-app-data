@@ -34,7 +34,7 @@ Some variables are required in the variable list for WISE-APP to function:
 
 The scripts in the `code/` folder prepare data inputs for WISE-APP. They clean, harmonize, and derive variables as defined in `variable_list.csv`. 
 
-1. `code/gmd_surveys.R` produces individual and household level data files from GMD surveys. It also prepares the H3 data file used to merge weather data and `survey_list.csv`. Each row in `survey_list.csv` describes the surveys prepared for WISE-APP using these columns:
+1. `code/gmd_surveys.R` produces individual and household level data files from GMD surveys and H3 data files used to merge weather data. It also prepares `survey_list.csv`. Each row in `survey_list.csv` describes the surveys available for WISE-APP with these columns:
     -   `economy`: Economy name 
     -   `code`: 3-letter country code 
     -   `year`: Survey year
@@ -43,7 +43,7 @@ The scripts in the `code/` folder prepare data inputs for WISE-APP. They clean, 
     -   `obs`: Number of observations
     -   `source`: Data source (e.g., "GMD")
 
-2. `era5land_weather.R` produces H3 level 6 data files with weather variables from ERA5-Land. 
+2. `era5land_weather.R` produces H3 level data files with weather variables from ERA5-Land. 
 
 3. `code/cpi_ppp.R` saves the latest Consumer Price Index (CPI) values and Purchasing Power Parity (PPP) values used by the World Bank to compute poverty and inequality statistics to `cpi_ppp.csv`. WISE-APP uses these to convert monetary variables in surveys (such as welfare) to 2021 PPP for comparability across survey years and countries.
 
@@ -68,7 +68,6 @@ WISE-APP uses the H3 spatial indexing system and timestamps to flexibly merge mi
 
 ![H3 spatial mapping](docs/locations.png)
 
-### 3. Use the data in WISE-APP
+### 3. Use data in WISE-APP
 The data files above can be saved to a local directory or any remote file system that WISE-APP can connect to.
 ...
-

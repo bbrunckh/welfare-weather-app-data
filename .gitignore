@@ -39,16 +39,14 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# pkgdown site
-docs/
-
 # Output data
 data/*.parquet
 data/cpi_ppp.csv
 data/survey_list.csv
 data/GMD_surveys_errors.csv
 
-# duckdb
+# duckdb temp files
+.tmp/
 */duckdb_*
 
 # translation temp files

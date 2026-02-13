@@ -313,9 +313,9 @@ for (n in 1:nrow(spat_cat)){
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
 
-  hh_vars <- c("code", "year", "survname", "economy", "hhid", "hhsize", "urban",
-  "internet", "ownhouse","rooms", "cooksource", "imp_wat_rec", "piped", 
-  "piped_to_prem", "imp_san_rec", "electricity")
+  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", 
+  "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
+  "cooksource", "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", "electricity")
 
   # Summarise variables at household level
   survey_db_hh <- survey_db |>

@@ -80,7 +80,7 @@ message("✓  All survey and H3 data files are present and contain required vari
 
 #------------------------------------------------------------------------------#
 # check weather data files for each country in survey list
-code <- unique(surveylist$code)
+codes <- unique(surveylist$code)
 for (c in codes) {
   weather_data_path <- paste0(data_path, c, "_weather.parquet")
   if (!file.exists(weather_data_path)) {
