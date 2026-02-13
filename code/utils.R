@@ -129,7 +129,8 @@ validate_surveylist <- function(df) {
 #' Validate variable list structure and data
 #'
 #' Checks that a dataframe matches the expected variable list schema with correct
-#' column names, data types, and no missing values in any columns.
+#' column names, data types, and no missing values in any columns. Also validates
+#' business rules for variable relationships and requirements.
 #'
 #' @param df A data frame to validate against the variable list schema
 #'
@@ -143,13 +144,13 @@ validate_surveylist <- function(df) {
 #'  type = "character",
 #'  units = "ISO3",
 #'  id = 1L,
-#'  outcome = 1L,
-#'  weather = 1L,
-#'  ind = 1L,
-#'  hh = 1L,
-#'  firm = 1L,
-#'  area = 1L,
-#'  interact = 1L,
+#'  outcome = 0L,
+#'  weather = 0L,
+#'  ind = 0L,
+#'  hh = 0L,
+#'  firm = 0L,
+#'  area = 0L,
+#'  interact = 0L,
 #'  fe = 1L
 #')
 #' validate_varlist(varlist)
@@ -159,23 +160,23 @@ validate_varlist <- function(df) {
   message("Validating variable list structure and data...")
 
   # Define expected survey list schema
-varlist_schema <- tibble::tibble(
-  name = character(),
-  label = character(),
-  type = character(),
-  units = character(),
-  id = integer(),
-  outcome = integer(),
-  weather = integer(),
-  ind = integer(),
-  hh = integer(),
-  firm = integer(),
-  area = integer(),
-  interact = integer(),
-  fe = integer()
-)
+  varlist_schema <- tibble::tibble(
+    name = character(),
+    label = character(),
+    type = character(),
+    units = character(),
+    id = integer(),
+    outcome = integer(),
+    weather = integer(),
+    ind = integer(),
+    hh = integer(),
+    firm = integer(),
+    area = integer(),
+    interact = integer(),
+    fe = integer()
+  )
 
-  # If no data frame provided, return empty tibble with correct structure
+  # If no data frame provided, stop
   if (missing(df) || is.null(df)) {
     stop("No variable list provided!")
   }
@@ -185,9 +186,9 @@ varlist_schema <- tibble::tibble(
     stop("Variable list does not match expected schema!")
   }
   
-  # Check for empty/missing values
+  # Check for empty/missing values (allow units to be empty)
   empty_cols <- character()
-  for (col in setdiff(names(df), "units")) { # allow units to be empty
+  for (col in setdiff(names(df), "units")) {
     if (any(is.na(df[[col]]) | df[[col]] == "")) {
       n_empty <- sum(is.na(df[[col]]) | df[[col]] == "")
       empty_cols <- c(empty_cols, paste0(col, " (", n_empty, " empty)"))
@@ -197,12 +198,123 @@ varlist_schema <- tibble::tibble(
   if (length(empty_cols) > 0) {
     message("Columns with empty values: ", paste(empty_cols, collapse = "; "))
     stop("Variable list contains missing values!")
-    return(survey_schema)
   }
 
+  # Define required variables with their expected specifications
+  required_specs <- tibble::tribble(
+    ~name,        ~label,                      ~type,        ~units, ~id, ~outcome, ~weather, ~ind, ~hh, ~firm, ~area, ~interact, ~fe,
+    "code",       "Country code",              "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
+    "economy",    "Economy",                   "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L,
+    "year",       "Starting year of survey",   "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
+    "survname",   "Survey acronym",            "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L,
+    "loc_id",     "Spatial unit ID",           "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
+    "h3",         "H3 cell index",             "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L,
+    "int_year",   "Interview year",            "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
+    "int_month",  "Interview month",           "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
+    "timestamp",  "Date of weather",           "Date",       "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L
+  )
+  
   # Check all required variables are included
-  #... to be implemented
-
+  missing_required <- setdiff(required_specs$name, df$name)
+  if (length(missing_required) > 0) {
+    stop("Required variables missing from variable list: ", 
+         paste(missing_required, collapse = ", "))
+  }
+  
+  # Check required variables have correct specifications
+  for (i in seq_len(nrow(required_specs))) {
+    req_var <- required_specs$name[i]
+    varlist_row <- df[df$name == req_var, ]
+    expected_row <- required_specs[i, ]
+    
+    # Compare each column (excluding name)
+    for (col in setdiff(names(expected_row), "name")) {
+      if (varlist_row[[col]] != expected_row[[col]]) {
+        stop("Required variable '", req_var, "' has incorrect specification for '", col, 
+             "': expected ", expected_row[[col]], ", found ", varlist_row[[col]])
+      }
+    }
+  }
+  
+  # At least one outcome variable required
+  if (sum(df$outcome == 1) < 1) {
+    stop("Variable list must contain at least one outcome variable!")
+  }
+  
+  # At least one weather variable required
+  if (sum(df$weather == 1) < 1) {
+    stop("Variable list must contain at least one weather variable!")
+  }
+  
+  # Validate type values are standard R classes
+  valid_types <- c("numeric", "integer", "logical", "character", "factor", "Date")
+  invalid_types <- df$type[!df$type %in% valid_types]
+  if (length(invalid_types) > 0) {
+    stop("Invalid type values found: ", paste(unique(invalid_types), collapse = ", "),
+         ". Valid types are: ", paste(valid_types, collapse = ", "))
+  }
+  
+  # Check units: numeric/integer can have units, others should be empty
+  numeric_vars <- df$name[df$type %in% c("numeric", "integer")]
+  other_vars <- df$name[!df$type %in% c("numeric", "integer")]
+  
+  invalid_units <- df$name[df$name %in% other_vars & df$units != ""]
+  if (length(invalid_units) > 0) {
+    stop("Non-numeric variables should have empty units: ", 
+         paste(invalid_units, collapse = ", "))
+  }
+  
+  # Validate indicator column relationships
+  for (i in seq_len(nrow(df))) {
+    var_name <- df$name[i]
+    
+    # Only id variables can have fe = 1
+    if (df$fe[i] == 1 & df$id[i] != 1) {
+      stop("Variable '", var_name, "' has fe = 1 but id != 1. Only id variables can have fe = 1.")
+    }
+    
+    # Weather variables cannot have any other indicator = 1
+    if (df$weather[i] == 1) {
+      other_indicators <- c("id", "outcome", "ind", "hh", "firm", "area", "interact", "fe")
+      if (any(df[i, other_indicators] == 1)) {
+        stop("Variable '", var_name, "' has weather = 1 but also has other indicators = 1. ",
+             "Weather variables cannot have other indicators.")
+      }
+    }
+    
+    # Outcome variables can only be combined with hh, ind, firm, area, or interact
+    if (df$outcome[i] == 1) {
+      invalid_combos <- c("id", "weather", "fe")
+      if (any(df[i, invalid_combos] == 1)) {
+        stop("Variable '", var_name, "' has outcome = 1 but also has invalid indicator(s). ",
+             "Outcome variables can only combine with hh, ind, firm, area, or interact.")
+      }
+    }
+    
+    # hh variables cannot be combined with firm or area
+    if (df$hh[i] == 1) {
+      if (df$firm[i] == 1 | df$area[i] == 1) {
+        stop("Variable '", var_name, "' has hh = 1 combined with firm or area. ",
+             "hh variables cannot be combined with firm or area.")
+      }
+    }
+    
+    # ind variables cannot be combined with hh or firm
+    if (df$ind[i] == 1) {
+      if (df$hh[i] == 1 | df$firm[i] == 1) {
+        stop("Variable '", var_name, "' has ind = 1 combined with hh or firm. ",
+             "ind variables cannot be combined with hh or firm.")
+      }
+    }
+    
+    # area variables cannot be combined with ind or hh
+    if (df$area[i] == 1) {
+      if (df$ind[i] == 1 | df$hh[i] == 1) {
+        stop("Variable '", var_name, "' has area = 1 combined with ind or hh. ",
+             "area variables cannot be combined with ind or hh.")
+      }
+    }
+  }
 
   message("Variable list is valid.")
   invisible(TRUE)
@@ -243,9 +355,9 @@ tidy_vars <- function(df, varlist) {
   char_vars <- varlist$name[varlist$type == "character"]
   fact_vars <- varlist$name[varlist$type == "factor"]
   date_vars <- varlist$name[varlist$type == "Date"]
-  
-  # Apply conversions using across() - more efficient than looping
-  df |>
+
+  # Apply conversions 
+  df_tidy <- df |>
     # keep only variables in varlist
     select(any_of(pull(varlist,name))) |> 
     # apply type conversions based on varlist specifications
@@ -254,10 +366,21 @@ tidy_vars <- function(df, varlist) {
       across(any_of(c(int_vars, log_vars)), as.integer),
       across(any_of(c(char_vars, fact_vars)), as.character),
       across(any_of(date_vars), as.Date)
-    ) |>
-    collect() |> # in case df is a duckdb connection, collect results into R
-    # remove columns that are all NA or all empty strings (for character columns)
-    select(where(~ !((all(is.na(.))) || is.character(.) && all(is.na(.) | . == ""))))
+    )
+  # keep only columns that have data (not all NA or empty)
+    # identify columns with data (not NA and not empty string)
+    char_cols <- intersect(c(char_vars, fact_vars), colnames(df))
+    num_cols <- intersect(c(num_vars, int_vars, log_vars), colnames(df))
+    cols_to_keep <- df_tidy |>
+      summarise(
+        across(any_of(char_cols), ~ max(case_when(is.na(.x) | .x == "" ~ 0, TRUE ~ 1), na.rm = TRUE)),
+        across(any_of(num_cols), ~ max(case_when(is.na(.x) ~ 0, TRUE ~ 1), na.rm = TRUE))
+      ) |>
+      collect() |>
+      select(where(~ . == 1)) |>
+      colnames()
+
+  df_tidy |> select(all_of(cols_to_keep)) 
 }
 
 ##' Check for Duplicate IDs in Dataset
@@ -291,6 +414,8 @@ tidy_vars <- function(df, varlist) {
 #' @seealso \code{\link{duplicated}}
 #' @export
 check_unique_ids <- function(df, id_var, survey_info = NULL) {
+  # Collect data if it's a duckdb connection 
+  df <- collect(df)
   # Check if all ID variables exist in dataframe
   missing_vars <- setdiff(id_var, names(df))
   if (length(missing_vars) > 0) {
@@ -338,8 +463,6 @@ check_unique_ids <- function(df, id_var, survey_info = NULL) {
 #' @param code Character string specifying the three-letter country code 
 #'   (e.g., "GNB").
 #' @param year Integer specifying the survey year (e.g., 2018).
-#' @param poverty_line Numeric poverty line in 2017 PPP USD per day. 
-#'   Default is 3.00 (lower-middle income poverty line).
 #' @param tolerance Numeric tolerance for acceptable difference between survey
 #'   and PIP poverty rates. Default is 0.001 (0.1 percentage points).
 #' @param welfare_var Character string specifying the name of the welfare 
@@ -355,8 +478,8 @@ check_unique_ids <- function(df, id_var, survey_info = NULL) {
 #' # Check $3.00 poverty rate
 #' check_poverty_rate(wise_hh, code, year)
 #' 
-#' # Check $2.15 poverty rate (international poverty line)
-#' check_poverty_rate(wise_hh, code, year, poverty_line = 2.15)
+#' # Check $3.00 poverty rate (international poverty line)
+#' check_poverty_rate(wise_hh, code, year)
 #' 
 #' # Use in validation workflow
 #' if (!check_poverty_rate(wise_hh, code, year)) {
@@ -372,8 +495,17 @@ check_poverty_rate <- function(df, code, year,
                                welfare_var = "welfare",
                                weight_var = "weight") {
   
+  # Collect data if it's a duckdb connection
+  df <- collect(df)
+  
   # Get PIP poverty statistics
   pip_stats <- pipr::get_stats(code, year)
+    # if empty, exit and print message
+  if (nrow(pip_stats) == 0) {
+    message("No PIP statistics found for ", code, " ", year, ". Cannot check poverty rate.")
+    return(FALSE)
+  }
+
   pip_poor <- pull(pip_stats, headcount)
   
   # Calculate poverty rate from survey data

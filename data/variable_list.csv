@@ -38,8 +38,8 @@
 "industry","Primary job in industry","logical","",0,1,0,1,0,0,0,1,0
 "services","Primary job in services","logical","",0,1,0,1,0,0,0,1,0
 "male","Male","logical","",0,0,0,1,0,0,0,1,0
-"age","Age","numeric","years",0,0,0,1,0,1,0,1,0
-"agecat","Age category","factor","",0,0,0,1,0,1,0,1,0
+"age","Age","numeric","years",0,0,0,1,0,0,0,1,0
+"agecat","Age category","factor","",0,0,0,1,0,0,0,1,0
 "literacy","Can read and write","logical","",0,0,0,1,0,0,0,1,0
 "educ_com1","Completed primary education (≥15 years)","logical","",0,0,0,1,0,0,0,1,0
 "educ_com2","Completed secondary education (≥15 years)","logical","",0,0,0,1,0,0,0,1,0
@@ -77,8 +77,8 @@
 "solidcookfuel","Household uses solid cooking fuel","logical","",0,0,0,0,1,0,0,1,0
 "electricity","Access to electricity in dwelling","logical","",0,0,0,0,1,0,0,1,0
 "elechr_acc","Electricity availability","numeric","hr/day",0,0,0,0,1,0,0,0,0
-"cellphone","Ownership of a cell phone","logical","",0,0,0,1,1,0,0,1,0
-"computer","Ownership of a computer","logical","",0,0,0,1,1,0,0,0,0
+"cellphone","Ownership of a cell phone","logical","",0,0,0,0,1,0,0,1,0
+"computer","Ownership of a computer","logical","",0,0,0,0,1,0,0,0,0
 "internet","Household has access to internet (within or outside the house)","logical","",0,0,0,0,1,0,0,1,0
 "radio","Ownership of a radio","logical","",0,0,0,0,1,0,0,0,0
 "tv","Ownership of a tv","logical","",0,0,0,0,1,0,0,0,0
@@ -87,10 +87,10 @@
 "stove","Ownership of a stove","logical","",0,0,0,0,1,0,0,0,0
 "fan","Ownership of an electric fan","logical","",0,0,0,0,1,0,0,1,0
 "ac","Ownership of an air conditioner","logical","",0,0,0,0,1,0,0,1,0
-"car","Ownership of a car","logical","",0,0,0,1,1,0,0,1,0
-"bcycle","Ownership of a bicycle","logical","",0,0,0,1,1,0,0,1,0
-"mcycle","Ownership of a motorcycle","logical","",0,0,0,1,1,0,0,1,0
-"boat","Ownership of a boat","logical","",0,0,0,1,1,0,0,0,0
+"car","Ownership of a car","logical","",0,0,0,0,1,0,0,1,0
+"bcycle","Ownership of a bicycle","logical","",0,0,0,0,1,0,0,1,0
+"mcycle","Ownership of a motorcycle","logical","",0,0,0,0,1,0,0,1,0
+"boat","Ownership of a boat","logical","",0,0,0,0,1,0,0,0,0
 "rooms","Number of habitable rooms ","integer","",0,0,0,0,1,0,0,0,0
 "ownhouse","Own house","logical","",0,0,0,0,1,0,0,1,0
 "renthouse","Rent house","logical","",0,0,0,0,1,0,0,0,0

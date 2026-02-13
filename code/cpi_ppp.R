@@ -29,4 +29,4 @@ cpi_ppp <- cpi |>
   select(code = country_code, year, data_level, cpi, ppp2021)
 
 # save output
-write.csv(cpi_ppp, paste0(data_path, "cpi_ppp.csv"))
+write.csv(cpi_ppp, paste0(data_path, "cpi_ppp.csv"), row.names = FALSE)

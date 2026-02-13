@@ -17,13 +17,13 @@ data_path <- "data/"
 varlist_path <- "data/variable_list.csv"
 
 # OPTIONAL path to existing survey list to be updated
-surveylist_path <- "data/survey_list.csv"
+# surveylist_path <- "data/survey_list.csv"
 
-# OPTIONAL choose specific GMD surveys to process (remove to process all)
-surveys <- tibble::tibble(
-  code = c("GNB", "GNB"),
-  year = c(2018L, 2021L)
-) 
+# OPTIONAL choose specific GMD surveys to process (otherwise will process all)
+# surveys <- tibble::tibble(
+#   code = c("GNB", "GNB"),
+#   year = c(2018L, 2021L)
+# ) 
 
 # set dlw token for downloading GMD data (use .Renviron for security)
 dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
@@ -31,14 +31,13 @@ dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
   # to add dlw token to user's .Renviron: 
     # 1. get token from https://datalibweb2.worldbank.org (expires after 30 days)
     # 2. usethis::edit_r_environ() to open R environment file
-    # 3. add line to environment file: DLW_TOKEN = "your_token"
-    # 4. save and restart R session
+    # 3. add line to environment file: DLW_TOKEN = "your_token", save and close file
+    # 4. restart R session
 
 #------------------------------------------------------------------------------#
 # load libraries
 library(dlw)
-options(dlw.local_dir = "~/dlw/")
-options(dlw.verbose = FALSE)
+options(dlw.local_dir = "~/dlw/", dlw.verbose = FALSE)
 library(DBI)
 library(duckdb)
 library(duckdbfs)
@@ -59,7 +58,8 @@ if (file.exists(varlist_path)) {
 
 #------------------------------------------------------------------------------#
 # load and validate WISE-APP survey list (if provided)
-if (file.exists(surveylist_path)) {
+# check if surveylist_path exists
+if (exists("surveylist_path") && file.exists(surveylist_path)) {
   surveylist <- validate_surveylist(read.csv(surveylist_path))
 } else {
   surveylist <- validate_surveylist()
@@ -77,8 +77,8 @@ spat_cat <- dlw_server_catalog("GMD")[
       by = .(Year, Country)][
           order(Country)]
 
-# Filter to specific surveys if provided
-if (!missing(surveys) && !is.null(surveys)) {
+# Filter to specific surveys if provided, and log error if no matching surveys found
+if (exists("surveys") && !missing(surveys) && !is.null(surveys)) {
   spat_cat <- spat_cat |>
     inner_join(surveys, by = c("Country" = "code", "Year" = "year"))
   if (nrow(spat_cat) == 0) {
@@ -145,7 +145,7 @@ for (n in 1:nrow(spat_cat)){
   }, error = function(e1) {
     # Use GPWG if error
     tryCatch({
-      gmd <- dlw_get_gmd(code, year, module = "GPWG", vermast = vermast, veralt = veralt)
+      gmd <<- dlw_get_gmd(code, year, module = "GPWG", vermast = vermast, veralt = veralt)
       message("GMD GPWG module loaded successfully.")
     }, error = function(e2) {
       errors <<- c(errors, paste0("Failed to get ALL or GPWG module for ", code, " ", year))
@@ -153,7 +153,7 @@ for (n in 1:nrow(spat_cat)){
       error_occurred <<- TRUE
     })
   })
-  if (error_occurred) { next } 
+  if (error_occurred) { next }
 
   # to duckdb for faster processing
   survey_db <- as_tibble(gmd) |> as_dataset()
@@ -163,7 +163,7 @@ for (n in 1:nrow(spat_cat)){
 
   # construct empty GMD variables needed if they are not in data (to avoid errors in later processing steps)
   gmd_vars <- c(
-    "code", "year", "strata", "psu", "hhid", "pid", 
+    "year", "strata", "psu", "hhid", "pid", "int_year", "int_month", 
     "hhsize", "weight", "welfare", "male", "age", "urban",
     "educy", "educat7", "educat5", "educat4", "literacy",
     "laborincome", "t_wage_total", "whours", "wmonths", "lstatus", "empstat",
@@ -183,13 +183,37 @@ for (n in 1:nrow(spat_cat)){
   }
   
   # harmonize different names for the same variable
-  survey_db <- survey_db |> 
-    mutate(code = if_else(is.na(code), countrycode, code),
-          hhid = as.character(hhid),
-          hhsize = if_else(is.na(hhsize),hsize,hhsize),
-          weight = if_else(is.na(weight),weight_p,weight)) |>
-    # drop if missing welfare or weight
-    filter(!is.na(welfare), !is.na(weight)) 
+  survey_cols <- colnames(survey_db)
+  has_hsize <- "hsize" %in% survey_cols
+  has_weight_p <- "weight_p" %in% survey_cols
+
+  if (has_hsize && has_weight_p) {
+    survey_db <- survey_db |> 
+      mutate(
+        hhid = as.character(hhid),
+        hhsize = coalesce(hhsize, hsize),
+        weight = coalesce(weight, weight_p)
+      ) |>
+      filter(!is.na(welfare), !is.na(weight))
+  } else if (has_hsize) {
+    survey_db <- survey_db |> 
+      mutate(
+        hhid = as.character(hhid),
+        hhsize = coalesce(hhsize, hsize)
+      ) |>
+      filter(!is.na(welfare), !is.na(weight))
+  } else if (has_weight_p) {
+    survey_db <- survey_db |> 
+      mutate(
+        hhid = as.character(hhid),
+        weight = coalesce(weight, weight_p)
+      ) |>
+      filter(!is.na(welfare), !is.na(weight))
+  } else {
+    survey_db <- survey_db |> 
+      mutate(hhid = as.character(hhid)) |>
+      filter(!is.na(welfare), !is.na(weight))
+  }
 
   #----------------------------------------------------------------------------#
   # Prepare individual level data for WISE-APP
@@ -266,22 +290,26 @@ for (n in 1:nrow(spat_cat)){
       select(-int_month, -int_year) |>
       left_join(spat_db, by = c("code", "year", "hhid"))
   
-  # Tidy individual level data
-  wise_ind <- tidy_vars(survey_db, varlist)
+  # check if data is actually individual level - does pid exist? 
+    # if not, just prepare household level data
+  if (!"pid" %in% colnames(survey_db)) {
+      
+    # Tidy individual level data
+    wise_ind <- tidy_vars(survey_db, varlist)
 
-  # Check unique IDs, skip if duplicates
-  if (!check_unique_ids(wise_ind, c("pid", "hhid"), paste(code, year))) {
-    errors <- c(errors, paste0("pid not unique in ", code, " ", year))
-    next
-  }
-    
-  # Check poverty rate, log error if mismatch (but don't skip)
-  if (!check_poverty_rate(wise_ind, code, year)) {
-    errors <- c(errors, paste0("$3.00 poverty rate mismatch for ", code, " ", year))
-  }
-  # Save individual level data
-  write_dataset(wise_ind, paste0(data_path, code, "_", year, "_",survname,"_ind.parquet"))
-  
+    # Check unique IDs, skip if duplicates
+    if (!check_unique_ids(wise_ind, c("pid", "hhid"), paste(code, year))) {
+      errors <- c(errors, paste0("pid not unique in ", code, " ", year))
+      next
+    }
+      
+    # Check poverty rate, log error if mismatch (but don't skip)
+    if (!check_poverty_rate(wise_ind, code, year)) {
+      errors <- c(errors, paste0("$3.00 poverty rate mismatch for ", code, " ", year))
+    }
+    # Save individual level data
+    write_dataset(wise_ind, paste0(data_path, code, "_", year, "_",survname,"_ind.parquet"))
+  } 
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
 
@@ -345,8 +373,8 @@ for (n in 1:nrow(spat_cat)){
 
   # Prepare H3 level data for WISE-APP
   wise_h3 <- as_tibble(h3) |> as_dataset() |>
-    # use H3Index (uint64_t) representation, level 6 (to merge weather data)
-    mutate(h3 = h3_string_to_h3(h3_6)) |> 
+    # use H3 Index level 6 (to merge weather data)
+    rename(h3 = h3_6) |> 
     tidy_vars(varlist)
 
   # Save H3 level data
@@ -354,20 +382,25 @@ for (n in 1:nrow(spat_cat)){
 
 #------------------------------------------------------------------------------#
 # Update survey list
-  for (level in c("ind", "hh")){
-    surveylist = bind_rows(surveylist,
+  levels_to_add <- c("hh")
+  if (exists("wise_ind")) {levels_to_add <- c("ind", "hh")}
+  for (level in levels_to_add) {
+    obs <- switch(level, 
+      "ind" = length(pull(wise_ind, code)), 
+      "hh" = length(pull(wise_hh, code)))
+    
+    surveylist <- bind_rows(surveylist,
       tibble(
         economy = economy, 
         code = code, 
         survname = survname,
         year = year, 
         level = level,
-        obs = switch(level, "ind" = nrow(wise_ind), "hh" = nrow(wise_hh)),
-        source = "GMD"
-      )
-    )
+        obs = obs, 
+        source = "GMD"))
   }
-message(paste0("✓  ",code, " ", year, " ", survname, " processed successfully with ", nrow(wise_ind), " individual records and ", nrow(wise_hh), " household records."))
+
+message(paste0("✓  ", code, " ", year, " ", survname, " processed successfully."))
 } # end of survey loop
 
 #------------------------------------------------------------------------------#
