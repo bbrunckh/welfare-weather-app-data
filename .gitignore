@@ -44,9 +44,9 @@ docs/
 
 # Output data
 data/*.parquet
-data/cpi_ppp.csv
-data/survey_list.csv
-data/GMD_surveys_errors.csv
+# data/cpi_ppp.csv
+# data/survey_list.csv
+# data/GMD_surveys_errors.csv
 
 # translation temp files
 po/*~
