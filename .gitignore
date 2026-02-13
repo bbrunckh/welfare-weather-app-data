@@ -42,8 +42,11 @@ vignettes/*.pdf
 # pkgdown site
 docs/
 
-# Output data parquet files
+# Output data
 data/*.parquet
+data/cpi_ppp.csv
+data/survey_list.csv
+data/GMD_surveys_errors.csv
 
 # translation temp files
 po/*~
