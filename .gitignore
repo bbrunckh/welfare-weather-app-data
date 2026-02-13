@@ -48,6 +48,9 @@ data/cpi_ppp.csv
 data/survey_list.csv
 data/GMD_surveys_errors.csv
 
+# duckdb
+*/duckdb_*
+
 # translation temp files
 po/*~
 
