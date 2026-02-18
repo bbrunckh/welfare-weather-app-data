@@ -139,7 +139,6 @@ for (n in 1:nrow(spat_cat)){
   error_occurred <- FALSE
   tryCatch({
     h3 <- dlw_get_gmd(code, year, module = "H3", vermast = vermast, veralt = veralt)
-    message("H3 module loaded successfully.")
   }, error = function(e) {
     errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
     message(errors[[length(errors)]])
@@ -328,6 +327,8 @@ for (n in 1:nrow(spat_cat)){
   hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", "loc_id", 
   "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
   "cooksource", "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", "electricity")
+  spat_vars <- colnames(spat_db)[!colnames(spat_db) %in% hh_vars]
+  group_vars <- c(hh_vars, spat_vars)
 
   # Summarise variables at household level
   survey_db_hh <- survey_db |>
@@ -350,7 +351,7 @@ for (n in 1:nrow(spat_cat)){
     depend = if_else(sum(age>=15 & age <65, na.rm = TRUE)>0,
                     (sum(age<15, na.rm = TRUE) + sum(age>=65, na.rm = TRUE))/sum(age>=15 & age <65, na.rm = TRUE),
                     NA),
-      .by = all_of(hh_vars)) |> 
+      .by = any_of(group_vars)) |> 
     rename(educy_hh = educy) 
   
   # Tidy household level data
