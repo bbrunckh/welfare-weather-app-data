@@ -65,8 +65,8 @@ industry_orig,Industry (original classification),factor,,0,0,0,1,0,0,0,1,0
 occup,Occupation (1 digit classification),factor,,0,0,0,1,0,0,0,1,0
 occup_orig,Occupation (original classification),factor,,0,0,0,1,0,0,0,1,0
 njobs,Number of jobs,integer,,0,0,0,1,0,0,0,0,0
-healthins,Health insurance,logical,,0,0,0,1,0,0,0,1,0
-socialsec,Social security,logical,,0,0,0,1,0,0,0,1,0
+healthins,Health insurance,logical,,0,0,0,0,1,0,0,1,0
+socialsec,Social security,logical,,0,0,0,0,1,0,0,1,0
 urban,Urban,logical,,0,0,0,0,0,0,1,1,0
 hhsize,Household size,integer,,0,0,0,0,1,0,0,0,0
 depend,Dependency ratio,numeric,,0,0,0,0,1,0,0,0,0

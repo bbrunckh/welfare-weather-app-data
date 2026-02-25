@@ -1,7 +1,6 @@
 # Prepare H3-indexed ERA5-Land weather data for WISE-APP
 
 # This script prepares H3-indexed ERA5-Land weather data files for wise-app.
-# See era5land_h3.R for how to download the raw ERA5-Land data and convert to H3-indexed parquet files.
 
 rm(list = ls())
 
@@ -88,7 +87,7 @@ for (n in 1:length(code_list)){
     message(paste0("Downloading ERA5-Land data for country code: ", code, " from Copernicus Climate Data Store..."))
     
     # function to download data
-    warning("Not implemented yet")
+    warning("Not implemented yet", immediate. = TRUE)
     next
 
     # indexing ERA5-Land data to H3 grid

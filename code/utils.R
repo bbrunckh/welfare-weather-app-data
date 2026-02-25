@@ -347,40 +347,62 @@ validate_varlist <- function(df) {
 #' @seealso \code{\link{mutate}}, \code{\link{across}}
 #' @export
 #' 
-tidy_vars <- function(df, varlist) {
+tidy_vars <- function(df, varlist, gmd = NULL) {
   # Extract variable names by type
-  num_vars <- varlist$name[varlist$type == "numeric"]
-  int_vars <- varlist$name[varlist$type == "integer"]
-  log_vars <- varlist$name[varlist$type == "logical"]
+  num_vars  <- varlist$name[varlist$type == "numeric"]
+  int_vars  <- varlist$name[varlist$type == "integer"]
+  log_vars  <- varlist$name[varlist$type == "logical"]
   char_vars <- varlist$name[varlist$type == "character"]
   fact_vars <- varlist$name[varlist$type == "factor"]
   date_vars <- varlist$name[varlist$type == "Date"]
 
-  # Apply conversions 
+  # Apply conversions — treat factor as character in DuckDB (no ENUM issues)
   df_tidy <- df |>
-    # keep only variables in varlist
-    select(any_of(pull(varlist,name))) |> 
-    # apply type conversions based on varlist specifications
+    select(any_of(pull(varlist, name))) |>
     mutate(
-      across(any_of(num_vars), as.numeric),
-      across(any_of(c(int_vars, log_vars)), as.integer),
+      across(any_of(num_vars),               as.numeric),
+      across(any_of(c(int_vars, log_vars)),  as.integer),
       across(any_of(c(char_vars, fact_vars)), as.character),
-      across(any_of(date_vars), as.Date)
+      across(any_of(date_vars),              as.Date)
     )
-  # keep only columns that have data (not all NA or empty)
-    # identify columns with data (not NA and not empty string)
-    char_cols <- intersect(c(char_vars, fact_vars), colnames(df))
-    num_cols <- intersect(c(num_vars, int_vars, log_vars), colnames(df))
-    cols_to_keep <- df_tidy |>
-      summarise(
-        across(any_of(char_cols), ~ max(case_when(is.na(.x) | .x == "" ~ 0, TRUE ~ 1), na.rm = TRUE)),
-        across(any_of(num_cols), ~ max(case_when(is.na(.x) ~ 0, TRUE ~ 1), na.rm = TRUE))
-      ) |>
-      collect() |>
-      select(where(~ . == 1)) |>
-      colnames()
 
-  df_tidy |> select(all_of(cols_to_keep), any_of(date_vars)) 
+  # identify columns with data (not NA and not empty string)
+  char_cols <- intersect(c(char_vars, fact_vars), colnames(df_tidy))
+  num_cols  <- intersect(c(num_vars, int_vars, log_vars), colnames(df_tidy))
+
+  cols_to_keep <- df_tidy |>
+    summarise(
+      across(any_of(char_cols), ~ max(case_when(is.na(.x) | .x == "" ~ 0, TRUE ~ 1), na.rm = TRUE)),
+      across(any_of(num_cols),  ~ max(case_when(is.na(.x) ~ 0, TRUE ~ 1), na.rm = TRUE))
+    ) |>
+    collect() |>
+    select(where(~ . == 1)) |>
+    colnames()
+
+  out <- df_tidy |> select(all_of(cols_to_keep)) |> collect()
+
+    # Re-attach haven value labels as factors after collect()
+    # For _hh suffix variables, look up labels from the base variable name in gmd
+    if (!is.null(gmd)) {
+      for (v in intersect(c(fact_vars, paste0(fact_vars, "_hh")), colnames(out))) {
+        # strip _hh suffix to find source variable in gmd
+        base_v <- sub("_hh$", "", v)
+        if (base_v %in% colnames(gmd) && inherits(gmd[[base_v]], "haven_labelled")) {
+          # extract integer codes and their corresponding labels
+          lbls      <- haven::as_factor(gmd[[base_v]])
+          lbl_codes <- as.integer(attr(gmd[[base_v]], "labels"))  # named integer vector
+          lbl_names <- names(attr(gmd[[base_v]], "labels"))       # character label names
+          # map integer codes in out to factor levels
+          out[[v]] <- factor(
+            as.integer(as.numeric(out[[v]])),
+            levels = lbl_codes,
+            labels = lbl_names
+          )
+        }
+      }
+    }
+
+  out
 }
 
 ##' Check for Duplicate IDs in Dataset

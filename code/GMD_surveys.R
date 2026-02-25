@@ -166,8 +166,10 @@ for (n in 1:nrow(spat_cat)){
   })
   if (error_occurred) {next}
 
-  # to duckdb for faster processing
-  survey_db <- as_tibble(gmd) |> as_dataset()
+  # Strip haven_labelled class, to duckdb for faster processing
+survey_db <- as_tibble(gmd) |>
+  haven::zap_labels() |>
+  as_dataset()
 
   #----------------------------------------------------------------------------#
   # Harmonize GMD variables
@@ -283,8 +285,8 @@ for (n in 1:nrow(spat_cat)){
     # Assets (no recoding)
   
     # Household characteristics
-    solidcookfuel = case_when(cooksource == 1 || cooksource == 3 ~ 1, !is.na(cooksource) ~ 0),
-    internet = case_when(internet <= 3 ~ 1, internet ==4 ~ 0),
+    solidcookfuel = case_when(cooksource == 1 | cooksource == 3 ~ 1, !is.na(cooksource) ~ 0),
+    internet = case_when(internet <= 3 ~ 1, internet == 4 ~ 0),
     ownhouse = case_when(ownhouse == 1 ~ 1, !is.na(ownhouse) ~ 0),
     renthouse = case_when(ownhouse == 2 ~ 1, !is.na(ownhouse) ~ 0)
     )
@@ -305,8 +307,8 @@ for (n in 1:nrow(spat_cat)){
     # if not, just prepare household level data
   if ("pid" %in% colnames(survey_db)) {
       
-    # Tidy individual level data
-    wise_ind <- tidy_vars(survey_db, varlist)
+    # Tidy individual level data (pass original gmd for factor labels)
+    wise_ind <- tidy_vars(survey_db, varlist, gmd = gmd)
 
     # Check unique IDs, skip if duplicates
     if (!check_unique_ids(wise_ind, c("pid", "hhid"), paste(code, year))) {
@@ -354,8 +356,8 @@ for (n in 1:nrow(spat_cat)){
       .by = any_of(group_vars)) |> 
     rename(educy_hh = educy) 
   
-  # Tidy household level data
-  wise_hh <- tidy_vars(survey_db_hh, varlist)
+  # Tidy household level data (factor _hh vars get labels from base var in gmd)
+  wise_hh <- tidy_vars(survey_db_hh, varlist, gmd = gmd)
 
   # Check unique IDs, skip if duplicates
   if (!check_unique_ids(wise_hh, "hhid", paste(code, year))) {
