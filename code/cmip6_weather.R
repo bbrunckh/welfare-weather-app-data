@@ -54,7 +54,7 @@ if (file.exists(surveylist_path)) {
 #------------------------------------------------------------------------------#
 
 # list of SSPs to process
-ssp_list <- c("historical", "ssp5_8_5") # "ssp3_7_0", "ssp2_4_5", "ssp1_2_6"
+ssp_list <- c("historical", "ssp5_8_5", "ssp3_7_0", "ssp2_4_5") # 
 
 #------------------------------------------------------------------------------#
 # Loop over country codes and prepare weather data for each country
