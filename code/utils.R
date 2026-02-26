@@ -379,7 +379,7 @@ tidy_vars <- function(df, varlist, gmd = NULL) {
     select(where(~ . == 1)) |>
     colnames()
 
-  out <- df_tidy |> select(all_of(cols_to_keep)) |> collect()
+  out <- df_tidy |> select(all_of(c(cols_to_keep, date_vars))) |> collect()
 
     # Re-attach haven value labels as factors after collect()
     # For _hh suffix variables, look up labels from the base variable name in gmd
