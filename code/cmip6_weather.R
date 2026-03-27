@@ -3,6 +3,7 @@
 # This script prepares H3-indexed CMIP6 weather data files for wise-app.
 
 rm(list = ls())
+mem.maxVSize(32000)
 
 #------------------------------------------------------------------------------#
 
@@ -104,6 +105,11 @@ for (n in 1:length(code_list)){
       # clean and tidy variables
 
     }
+    # cleanup DuckDB connections at end of each SSP iteration
+    if (exists("cmip6_h3_6")) rm(cmip6_h3_6)
+    if (exists("survey_h3"))  rm(survey_h3)
+    gc()
+    
     message(paste0("✓ CMIP6 ", ssp, "data for ", code, " processed"))
   } # end of SSP loop
 } # end of country loop
