@@ -58,11 +58,6 @@ One row per survey–level combination for which a microdata file exists.
 
 [Sample survey list](docs/sample_survey_list.csv)
 
-| economy | code | year | survname | level | obs | source |
-|---------|------|------|----------|-------|-----|--------|
-| Guinea-Bissau | GNB | 2018 | EHCVM | hh | 6420 | GMD |
-| Guinea-Bissau | GNB | 2018 | EHCVM | ind | 31050 | GMD |
-
 ### `variable_list.csv`
 
 One row per variable. Controls which variables appear in the UI, how they are labelled, and how they are used in the app for modelling.
@@ -85,24 +80,6 @@ One row per variable. Controls which variables appear in the UI, how they are la
 
 [Sample variable list](docs/sample_variable_list.csv)
 
-| name | label | type | units | id | outcome | weather | ind | hh | firm | area | interact | fe |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `code` | Country code | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `economy` | Economy | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| `year `| Starting year of survey | integer |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `survname` | Survey acronym | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| `loc_id` | Spatial unit ID | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `h3` | H3 cell index | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| `hhid` | Household ID | character |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `int_year `| Interview year | integer |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `int_month` | Interview month | integer |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `timestamp` | Date of weather | Date |  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| `welfare `| Welfare per day | numeric | LCU | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| `age` | Age | numeric | years | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
-| `hhsize` | Household size | integer |  | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
-| `pop_2020` | Population in 2020 | numeric | people | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
-| `t` | Monthly temperature | numeric | °C | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
-
 The following must be included in the variable list and relevant data files:
 
 - `code`, `economy`, `year`, `survname`, `int_year`, `int_month`, `loc_id`, `h3`, `timestamp`
@@ -122,11 +99,6 @@ One row per country–year–data level. Used to convert welfare aggregates from
 | `ppp2021` | numeric | PPP conversion factor relative to 2021 USD |
 
 [Sample cpi_ppp.csv](docs/sample_cpi_ppp.csv)
-
-| code | year | data_level | cpi | ppp2021 |
-|------|------|------------|-----|---------|
-| GNB | 2018 | national | 112.3 | 245.6 |
-| GNB | 2021 | national | 131.7 | 268.4 |
 
 ---
 
