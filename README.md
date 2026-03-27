@@ -56,7 +56,7 @@ One row per survey–level combination for which a microdata file exists.
 | `obs` | integer | Number of observations |
 | `source` | string | Data source |
 
-Example:
+[Sample survey list](docs/sample_survey_list.csv)
 
 | economy | code | year | survname | level | obs | source |
 |---------|------|------|----------|-------|-----|--------|
@@ -83,7 +83,7 @@ One row per variable. Controls which variables appear in the UI, how they are la
 | `interact` | binary | 1 if available as an interaction term in the model |
 | `fe` | binary | 1 if available as a fixed effect in the model |
 
-Example:
+[Sample variable list](docs/sample_variable_list.csv)
 
 | name | label | type | units | id | outcome | weather | ind | hh | firm | area | interact | fe |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -121,7 +121,7 @@ One row per country–year–data level. Used to convert welfare aggregates from
 | `cpi` | numeric | Consumer price index |
 | `ppp2021` | numeric | PPP conversion factor relative to 2021 USD |
 
-Example:
+[Sample cpi_ppp.csv](docs/sample_cpi_ppp.csv)
 
 | code | year | data_level | cpi | ppp2021 |
 |------|------|------------|-----|---------|
