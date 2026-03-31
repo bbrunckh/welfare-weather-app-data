@@ -145,7 +145,7 @@ validate_surveylist <- function(df) {
 #'  units = "ISO3",
 #'  id = 1L,
 #'  outcome = 0L,
-#'  weather = 0L,
+#'  hazard = 0L,
 #'  ind = 0L,
 #'  hh = 0L,
 #'  firm = 0L,
@@ -167,7 +167,7 @@ validate_varlist <- function(df) {
     units = character(),
     id = integer(),
     outcome = integer(),
-    weather = integer(),
+    hazard = integer(),
     ind = integer(),
     hh = integer(),
     firm = integer(),
@@ -202,7 +202,7 @@ validate_varlist <- function(df) {
 
   # Define required variables with their expected specifications
   required_specs <- tibble::tribble(
-    ~name,        ~label,                      ~type,        ~units, ~id, ~outcome, ~weather, ~ind, ~hh, ~firm, ~area, ~interact, ~fe,
+    ~name,        ~label,                      ~type,        ~units, ~id, ~outcome, ~hazard, ~ind, ~hh, ~firm, ~area, ~interact, ~fe,
     "code",       "Country code",              "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
     "economy",    "Economy",                   "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L,
     "year",       "Starting year of survey",   "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
@@ -211,7 +211,7 @@ validate_varlist <- function(df) {
     "h3",         "H3 cell index",             "character",  "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L,
     "int_year",   "Interview year",            "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
     "int_month",  "Interview month",           "integer",    "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        1L,
-    "timestamp",  "Date of weather",           "Date",       "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L
+    "timestamp",  "Month",           "Date",       "",     1L,  0L,       0L,       0L,   0L,  0L,    0L,    0L,        0L
   )
   
   # Check all required variables are included
@@ -241,9 +241,9 @@ validate_varlist <- function(df) {
     stop("Variable list must contain at least one outcome variable!")
   }
   
-  # At least one weather variable required
-  if (sum(df$weather == 1) < 1) {
-    stop("Variable list must contain at least one weather variable!")
+  # At least one hazard variable required
+  if (sum(df$hazard == 1) < 1) {
+    stop("Variable list must contain at least one hazard variable!")
   }
   
   # Validate type values are standard R classes
@@ -273,18 +273,18 @@ validate_varlist <- function(df) {
       stop("Variable '", var_name, "' has fe = 1 but id != 1. Only id variables can have fe = 1.")
     }
     
-    # Weather variables cannot have any other indicator = 1
-    if (df$weather[i] == 1) {
+    # Hazard variables cannot have any other indicator = 1
+    if (df$hazard[i] == 1) {
       other_indicators <- c("id", "outcome", "ind", "hh", "firm", "area", "interact", "fe")
       if (any(df[i, other_indicators] == 1)) {
-        stop("Variable '", var_name, "' has weather = 1 but also has other indicators = 1. ",
-             "Weather variables cannot have other indicators.")
+        stop("Variable '", var_name, "' has hazard = 1 but also has other indicators = 1. ",
+             "Hazard variables cannot have other indicators.")
       }
     }
     
     # Outcome variables can only be combined with hh, ind, firm, area, or interact
     if (df$outcome[i] == 1) {
-      invalid_combos <- c("id", "weather", "fe")
+      invalid_combos <- c("id", "hazard", "fe")
       if (any(df[i, invalid_combos] == 1)) {
         stop("Variable '", var_name, "' has outcome = 1 but also has invalid indicator(s). ",
              "Outcome variables can only combine with hh, ind, firm, area, or interact.")
@@ -379,7 +379,7 @@ tidy_vars <- function(df, varlist, gmd = NULL) {
     select(where(~ . == 1)) |>
     colnames()
 
-  out <- df_tidy |> select(all_of(c(cols_to_keep, date_vars))) |> collect()
+  out <- df_tidy |> select(all_of(cols_to_keep), any_of(date_vars)) |> collect()
 
     # Re-attach haven value labels as factors after collect()
     # For _hh suffix variables, look up labels from the base variable name in gmd
@@ -521,9 +521,24 @@ check_poverty_rate <- function(df, code, year,
   df <- collect(df)
   
   # Get PIP poverty statistics
-  pip_stats <- pipr::get_stats(code, year)
-    # if empty, exit and print message
-  if (nrow(pip_stats) == 0) {
+  # Get PIP poverty statistics - retry up to 3 times on httr2 errors
+  pip_stats <- NULL
+  for (attempt in 1:3) {
+    tryCatch({
+      pip_stats <- pipr::get_stats(code, year)
+      break  # success - exit retry loop
+    }, error = function(e) {
+      if (attempt < 3) {
+        message("PIP API error (attempt ", attempt, "/3), retrying in 5s: ", conditionMessage(e))
+        Sys.sleep(5)
+      } else {
+        message("PIP API failed after 3 attempts for ", code, " ", year, ": ", conditionMessage(e))
+      }
+    })
+  }
+
+  # if empty or null, exit and print message
+  if (is.null(pip_stats) || nrow(pip_stats) == 0) {
     message("No PIP statistics found for ", code, " ", year, ". Cannot check poverty rate.")
     return(FALSE)
   }

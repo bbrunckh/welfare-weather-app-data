@@ -2,7 +2,6 @@
 
 # data/
 # ├── metadata/
-# │   └── variable_list.csv
 # │
 # ├── microdata/
 # │   ├── hh/
@@ -12,16 +11,17 @@
 # │
 # └── hazard/
 #     ├── weather/
+#     │   ├── historical/
+#     │   └── projections/
 #     └── events/
+#         ├── historical/
+#         └── probabilistic/
 
 #------------------------------------------------------------------------------#
 # User inputs
 
-# path to wise-app data/ directory
-data_path <- "data/"
-
-# path to pre-existing WISE-APP variable list (see Readme for template)
-varlist_path <- "data/variable_list.csv"
+# path to wise-app data/ directory 
+data_path <- Sys.getenv("WISEAPP_DATA_PATH") 
 
 #------------------------------------------------------------------------------#
 # create data directory and subfolders if it doesn't exist
@@ -35,12 +35,10 @@ dir.create(file.path(data_path, "microdata", "firm"), showWarnings = FALSE)
 dir.create(file.path(data_path, "microdata", "h3"), showWarnings = FALSE)
 dir.create(file.path(data_path, "hazard"), showWarnings = FALSE)
 dir.create(file.path(data_path, "hazard", "weather"), showWarnings = FALSE)
+dir.create(file.path(data_path, "hazard", "weather", "historical"), showWarnings = FALSE)
+dir.create(file.path(data_path, "hazard", "weather", "projections"), showWarnings = FALSE)
 dir.create(file.path(data_path, "hazard", "events"), showWarnings = FALSE)
+dir.create(file.path(data_path, "hazard", "events", "historical"), showWarnings = FALSE)
+dir.create(file.path(data_path, "hazard", "events", "probabilistic"), showWarnings = FALSE)
 
-# copy variable to metadata folder if it exists
-if (file.exists(varlist_path)) {
-  file.copy(varlist_path, file.path(data_path, "metadata", "variable_list.csv"), overwrite = TRUE)
-  message("✓ Copied variable list to ", file.path(data_path, "metadata", "variable_list.csv"))
-} else {
-  message("⚠️ Variable list not found at ", varlist_path, "\nPlease create a variable list and save it to this location.")
-}
+message("✓ Created data directory and subfolders at ", data_path)

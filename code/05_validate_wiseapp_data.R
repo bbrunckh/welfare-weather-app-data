@@ -96,9 +96,9 @@ for (c in codes) {
     stop("Weather data file for ", c, " is missing required variables: ", paste(missing_weather_vars, collapse = ", ")) 
   }
   #check at least one weather variable is present in weather data file
-  weather_vars <- varlist$name[varlist$weather == 1]
+  weather_vars <- varlist$name[varlist$hazard == 1]
   if (!any(weather_vars %in% colnames(weather_data))) {
-    stop("Weather data file for ", c, " does not contain any weather variables specified in variable list.")
+    stop("Weather data file for ", c, " does not contain any hazard variables specified in variable list.")
   } 
 }
 message("✓  All weather data files are present and contain required variables.")

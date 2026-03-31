@@ -10,17 +10,14 @@ rm(list = ls())
 #------------------------------------------------------------------------------#
 # User inputs
 
-# path to data folder (where output files will be saved)
-data_path <- "data/"
+# path to wise-app data/ directory 
+data_path <- Sys.getenv("WISEAPP_DATA_PATH") 
 
-# path to WISE-APP variable list
+# path to existing WISE-APP variable list
 varlist_path <- "data/variable_list.csv"
 
-# OPTIONAL path to existing survey list to be updated
-# surveylist_path <- "data/survey_list.csv"
-
-# OPTIONAL choose specific GMD surveys to process (otherwise will process all)
-# surveys <- tibble::tibble(code = c("IND"),year = c(2021L)) 
+# OPTIONAL path to existing survey list for updates (will skip surveys in list)
+surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
 
 # set dlw token for downloading GMD data (use .Renviron for security)
 dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
@@ -31,10 +28,15 @@ dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
     # 3. add line to environment file: DLW_TOKEN = "your_token", save and close file
     # 4. restart R session
 
+# OPTIONAL choose specific GMD surveys to process (otherwise will process all)
+# surveys <- tibble::tibble(code = c("BFA"),year = c(2021L)) 
+
 #------------------------------------------------------------------------------#
 # load libraries
 library(dlw)
+options(dlw.format = "qs2")
 options(dlw.local_dir = "~/dlw/", dlw.verbose = FALSE)
+
 library(DBI)
 library(duckdb)
 library(duckdbfs)
@@ -58,10 +60,10 @@ if (file.exists(varlist_path)) {
 # load and validate WISE-APP survey list (if provided)
 # check if surveylist_path exists
 if (exists("surveylist_path") && file.exists(surveylist_path)) {
-  surveylist <- validate_surveylist(read.csv(surveylist_path))
-} else {
-  surveylist <- validate_surveylist()
-  surveylist
+  survey_list <- validate_surveylist(read.csv(surveylist_path))
+} else { 
+  survey_list <- validate_surveylist() # make empty survey list 
+  warning("Survey list file not found.")
 }
 
 #------------------------------------------------------------------------------#
@@ -74,6 +76,25 @@ spat_cat <- dlw_server_catalog("GMD")[
       , .SD[toupper(Veralt) == max(toupper(Veralt), na.rm = TRUE)],
       by = .(Year, Country)][
           order(Country)]
+
+# add SPAT files not yet uploaded to dlw
+loc_path <- "~/Library/CloudStorage/OneDrive-WBG/Household survey locations to H3/LOC"
+
+  # check for files ending with SPAT.dta
+  loc_files <- list.files(loc_path, pattern = "GMD_SPAT.dta$", recursive = TRUE)
+  # filter to file names not yet in spat_cat - check if filename after final / is in spat_cat$FileName
+  loc_files <- loc_files[!basename(loc_files) %in% spat_cat$FileName]
+
+  # create spat_cat entries for these files - we need Country_code, Survey_year, Survey_acronym, Vermast, Veralt, FileName, FilePath
+  if (length(loc_files)>0) {
+    loc_cat <- tibble::tibble(FilePath = file.path(loc_path, loc_files)) |>
+      mutate(FileName = basename(FilePath)) |>
+      tidyr::separate(FileName, 
+        into = c("Country_code", "Survey_year", "Survey_acronym", "Vermast", "M", "Veralt"), 
+        sep = "_", remove = FALSE, extra = "drop") |>
+      select(-M)
+    spat_cat <- bind_rows(spat_cat, loc_cat)
+  }
 
 # Filter to specific surveys if provided, and log error if no matching surveys found
 if (exists("surveys") && !missing(surveys) && !is.null(surveys)) {
@@ -107,9 +128,10 @@ for (n in 1:nrow(spat_cat)){
 
   message(paste0("Processing ", code, " ", year, " ", survname))
 
-  # Skip if already in survey list
-  if (any(surveylist$code == code & surveylist$year == year & 
-    surveylist$survname == survname &  surveylist$source == "GMD")){
+  # Skip if already in survey list (code year, surveyname, level, source = GMD)
+  if (any(survey_list$code == code & survey_list$year == year & 
+    survey_list$survname == survname &  survey_list$source == "GMD" &
+    survey_list$level %in% c("hh", "ind"))) {
     errors <- c(errors, paste0(code, " ", year, " already exists in survey list!"))
     message(errors[[length(errors)]])
     next
@@ -119,14 +141,20 @@ for (n in 1:nrow(spat_cat)){
   error_occurred <- FALSE
   tryCatch({
     spat <- dlw_get_gmd(code, year, module = "SPAT", vermast = vermast, veralt = veralt)
-  }, error = function(e) {
-    errors <<- c(errors, paste0("Failed to get SPAT module for ", code, " ", year))
-    message(errors[[length(errors)]])
-    error_occurred <<- TRUE
+    message("GMD SPAT module loaded successfully from dlw.")
+  }, error = function(e1) {
+    # Use local file if error
+    tryCatch({
+      spat_fpath <- list.files(loc_path,spat_cat$FileName[n], recursive = TRUE, full.names = TRUE)
+      spat <<- haven::read_dta(spat_fpath, encoding = "latin1")
+      message("GMD SPAT module loaded successfully from local directory.")
+    }, error = function(e2) {
+      errors <<- c(errors, paste0("Failed to get SPAT module for ", code, " ", year))
+      message(errors[[length(errors)]])
+      error_occurred <<- TRUE
+    })
   })
-  if (error_occurred) {next} else {
-    message("SPAT module loaded successfully.")
-  }
+  if (error_occurred) {next}
 
   # Skip if interview month missing in SPAT for > 50% households
   if (sum(is.na(spat$int_month))/nrow(spat)>0.5) {
@@ -139,25 +167,31 @@ for (n in 1:nrow(spat_cat)){
   error_occurred <- FALSE
   tryCatch({
     h3 <- dlw_get_gmd(code, year, module = "H3", vermast = vermast, veralt = veralt)
-  }, error = function(e) {
-    errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
-    message(errors[[length(errors)]])
-    error_occurred <<- TRUE
+    message("GMD H3 module loaded successfully from dlw.")
+  }, error = function(e1) {
+    # Use local file if error
+    tryCatch({
+      h3_fpath <- list.files(loc_path,spat_cat$FileName[n]|> stringr::str_replace("SPAT", "H3"), recursive = TRUE, full.names = TRUE)
+      h3 <<- haven::read_dta(h3_fpath, encoding = "latin1")
+      message("GMD H3 module loaded successfully from local directory.")
+    }, error = function(e2) {
+      errors <<- c(errors, paste0("Failed to get H3 module for ", code, " ", year))
+      message(errors[[length(errors)]])
+      error_occurred <<- TRUE
+    })
   })
-  if (error_occurred) {next} else {
-    message("H3 module loaded successfully.")
-  }
+  if (error_occurred) {next}
 
   # Try to load GMD ALL module, otherwise GPWG module, otherwise log error and skip
   error_occurred <- FALSE
   tryCatch({
     gmd <- dlw_get_gmd(code, year, module = "ALL", vermast = vermast, veralt = veralt)
-    message("GMD ALL module loaded successfully.")
+    message("GMD ALL module loaded successfully from dlw.")
   }, error = function(e1) {
     # Use GPWG if error
     tryCatch({
       gmd <<- dlw_get_gmd(code, year, module = "GPWG", vermast = vermast, veralt = veralt)
-      message("GMD GPWG module loaded successfully.")
+      message("GMD GPWG module loaded successfully from dlw.")
     }, error = function(e2) {
       errors <<- c(errors, paste0("Failed to get ALL or GPWG module for ", code, " ", year))
       message(errors[[length(errors)]])
@@ -303,15 +337,25 @@ survey_db <- as_tibble(gmd) |>
       select(-any_of(c("int_month", "int_year"))) |>
       left_join(spat_db, by = c("code", "year", "hhid"))
   
-  # check if data is actually individual level - does pid exist? 
+    # monthly timestamp for merging weather data
+    survey_db <- survey_db |>  
+      mutate(timestamp = as.Date(
+              if_else(is.na(int_year) | is.na(int_month), NA, 
+              paste0(as.integer(int_year), "-", as.integer(int_month), "-01"))))
+  
+  # confirm data is actually individual level - does pid exist? 
     # if not, just prepare household level data
   if ("pid" %in% colnames(survey_db)) {
+
+    # make pid unique by combining with hhid 
+    survey_db <- survey_db |>
+      mutate(pid = paste0(hhid, "_", pid))
       
     # Tidy individual level data (pass original gmd for factor labels)
     wise_ind <- tidy_vars(survey_db, varlist, gmd = gmd)
 
     # Check unique IDs, skip if duplicates
-    if (!check_unique_ids(wise_ind, c("pid", "hhid"), paste(code, year))) {
+    if (!check_unique_ids(wise_ind, "pid", paste(code, year))) {
       errors <- c(errors, paste0("pid not unique in ", code, " ", year))
       next
     }
@@ -321,13 +365,16 @@ survey_db <- as_tibble(gmd) |>
       errors <- c(errors, paste0("$3.00 poverty rate does not match PIP for ", code, " ", year))
     }
     # Save individual level data
-    write_dataset(wise_ind, paste0(data_path, code, "_", year, "_",survname,"_ind.parquet"))
+    out_dir <- file.path(data_path, "microdata/ind", code) 
+    dir.create(out_dir, showWarnings = FALSE)
+    write_dataset(wise_ind, file.path(out_dir, 
+  paste0(code, "_", year, "_",survname,"_GMD_ind.parquet")))
   } 
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
 
-  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", "loc_id", 
-  "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
+  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", 
+  "timestamp", "loc_id", "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
   "cooksource", "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", "electricity")
   spat_vars <- colnames(spat_db)[!colnames(spat_db) %in% hh_vars]
   group_vars <- c(hh_vars, spat_vars)
@@ -371,51 +418,40 @@ survey_db <- as_tibble(gmd) |>
   }
 
   # Save household level data
-  write_dataset(wise_hh, paste0(data_path, code, "_", year, "_",survname,"_hh.parquet"))
-  
+  out_dir <- file.path(data_path, "microdata/hh", code) 
+  dir.create(out_dir, showWarnings = FALSE)
+  write_dataset(wise_hh, file.path(out_dir, 
+  paste0(code, "_", year, "_",survname,"_GMD_hh.parquet")))
+
   #----------------------------------------------------------------------------#
   # Prepare H3 level data for WISE-APP
   wise_h3 <- as_tibble(h3) |> as_dataset() |>
-    # use H3 Index level 6 (to merge weather data)
-    rename(h3 = h3_6) |> 
+    # use level 7 H3 Index in data
+    rename(h3 = h3_7) |> 
     tidy_vars(varlist)
 
   # Save H3 level data
-  write_dataset(wise_h3, paste0(data_path, code, "_", year, "_",survname,"_h3.parquet"))
+out_dir <- file.path(data_path, "microdata/h3", code) 
+dir.create(out_dir, showWarnings = FALSE)
+write_dataset(wise_h3, file.path(out_dir, 
+  paste0(code, "_", year, "_",survname,"_GMD_h3.parquet")))
 
 #------------------------------------------------------------------------------#
-# Update survey list 
-  levels_to_add <- c("hh")
-  if ("pid" %in% colnames(survey_db)) {levels_to_add <- c("ind", "hh")}
-  for (level in levels_to_add) {
-    obs <- switch(level, 
-      "ind" = length(pull(wise_ind, code)), 
-      "hh" = length(pull(wise_hh, code)))
-    
-    surveylist <- bind_rows(surveylist,
-      tibble(
-        economy = economy, 
-        code = code, 
-        survname = survname,
-        year = year, 
-        level = level,
-        obs = obs, 
-        source = "GMD"))
-  }
 
 message(paste0("✓  ", code, " ", year, " ", survname, " processed successfully."))
 } # end of survey loop
 
 #------------------------------------------------------------------------------#
-
-# Save survey list
-write_csv(surveylist, paste0(data_path, "survey_list.csv"))
-
-# Save variable list to data folder
-write_csv(varlist, paste0(data_path, "variable_list.csv"))
-
 # Save error log (if any errors) to data folder
 if (length(errors) > 0){
   write_csv(tibble("Error" = errors), 
-    paste0(data_path, "GMD_surveys_errors.csv"))
+    file.path(data_path, "GMD_surveys_errors.csv"))
 }
+
+#------------------------------------------------------------------------------#
+# Save variable list to data folder
+write_csv(varlist, file.path(data_path, "metadata", "variable_list.csv"))
+
+#------------------------------------------------------------------------------#
+# Create survey list
+source("code/survey_list.R")

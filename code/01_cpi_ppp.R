@@ -8,8 +8,8 @@ rm(list = ls())
 #------------------------------------------------------------------------------#
 # User inputs
 
-# path to data folder (where output files will be saved)
-data_path <- "data/"
+# path to wise-app data/ directory 
+data_path <- Sys.getenv("WISEAPP_DATA_PATH") 
 
 #------------------------------------------------------------------------------#
 # load libraries
@@ -30,5 +30,5 @@ cpi_ppp <- cpi |>
   filter(!is.na(cpi), !is.na(ppp2021)) |>
   select(code = country_code, year, data_level, cpi, ppp2021)
 
-# save output
-write_csv(cpi_ppp, paste0(data_path, "cpi_ppp.csv"))
+# save metadata file with CPI and PPP conversion factors
+write_csv(cpi_ppp, file.path(data_path, "metadata", "cpi_ppp.csv"))

@@ -1,4 +1,4 @@
-name,label,type,units,id,outcome,weather,ind,hh,firm,area,interact,fe
+name,label,type,units,id,outcome,hazard,ind,hh,firm,area,interact,fe
 code,Country code,character,,1,0,0,0,0,0,0,0,1
 economy,Economy,character,,1,0,0,0,0,0,0,0,0
 year,Starting year of survey,integer,,1,0,0,0,0,0,0,0,1
@@ -19,7 +19,7 @@ fid,Firm ID,character,,1,0,0,0,0,0,0,0,1
 int_year,Interview year,integer,,1,0,0,0,0,0,0,0,1
 int_month,Interview month,integer,,1,0,0,0,0,0,0,0,1
 int_day,Interview day,integer,,1,0,0,0,0,0,0,0,1
-timestamp,Date of weather,Date,,1,0,0,0,0,0,0,0,0
+timestamp,Month,Date,,1,0,0,0,0,0,0,0,0
 weight,Sample weight,numeric,,1,0,0,0,0,0,0,0,0
 welfare,Welfare per day,numeric,LCU,0,1,0,0,1,0,0,1,0
 laborincome,Labor income per day,numeric,LCU,0,1,0,1,0,0,0,1,0
@@ -118,22 +118,13 @@ pop_2020,Population of spatial unit in 2020,numeric,people,0,0,0,0,0,0,1,0,0
 pop_2020_density,Population density in 2020,numeric,people/km^2,0,0,0,0,0,0,1,0,0
 pop_2020_f,Percent of population female,numeric,%,0,0,0,0,0,0,1,0,0
 pop_2020_m,Percent of population male,numeric,%,0,0,0,0,0,0,1,0,0
-t,Monthly temperature,numeric,째C,0,0,1,0,0,0,0,0,0
-tn,Monthly daily minimum temperature,numeric,째C,0,0,1,0,0,0,0,0,0
-tx,Monthly daily maximum temperature,numeric,째C,0,0,1,0,0,0,0,0,0
-dtr,Monthly daily temperature range,numeric,째C,0,0,1,0,0,0,0,0,0
-tnn,Monthly minimum of daily minimum temperature,numeric,째C,0,0,1,0,0,0,0,0,0
-txx,Monthly maximum of daily maximum temperature,numeric,째C,0,0,1,0,0,0,0,0,0
+t,Monthly temperature,numeric,좧,0,0,1,0,0,0,0,0,0
+tn,Monthly daily minimum temperature,numeric,좧,0,0,1,0,0,0,0,0,0
+tx,Monthly daily maximum temperature,numeric,좧,0,0,1,0,0,0,0,0,0
 tx35,Monthly extreme hot days,numeric,days,0,0,1,0,0,0,0,0,0
-tx40,Monthly very extreme hot days,numeric,days,0,0,1,0,0,0,0,0,0
 tr,Monthly tropical nights,numeric,days,0,0,1,0,0,0,0,0,0
 r,Monthly precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
-r01,Monthly wet days,numeric,days,0,0,1,0,0,0,0,0,0
-sdii,Monthly precipitation intensity,numeric,mm,0,0,1,0,0,0,0,0,0
-rx1day,Monthly maximum 1-day precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
 rx5day,Monthly maximum 5-day precipitation,numeric,mm,0,0,1,0,0,0,0,0,0
-r10,Monthly heavy precipitation days,numeric,days,0,0,1,0,0,0,0,0,0
 r20,Monthly very heavy precipitation days,numeric,days,0,0,1,0,0,0,0,0,0
 mrsos,Monthly soil moisture in upper soil portion,numeric,kg m-2,0,0,1,0,0,0,0,0,0
-spi6,Monthly SPI-6 ,numeric,,0,0,1,0,0,0,0,0,0
 spei6,Monthly SPEI-6,numeric,,0,0,1,0,0,0,0,0,0

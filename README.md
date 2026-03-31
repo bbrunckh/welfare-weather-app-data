@@ -25,13 +25,15 @@ data/
 │
 └── hazard/
     ├── weather/
-    │   └── {code}/
-    │       ├── observed/
-    │       └── projections/
+    │   ├── historical/
+    │   │   └── {code}/
+    │   └── projections/
+    │       └── {code}/
     └── events/
-        └── {code}/
-            ├── historical/
-            └── probabilistic/
+        ├── historical/
+        │   └── {code}/
+        └── probabilistic/
+            └── {code}/
 ```
 
 `{code}` is the ISO 3166-1 alpha-3 country code (e.g. `GNB`, `NGA`, `ETH`).
@@ -56,7 +58,7 @@ One row per survey–level combination for which a microdata file exists.
 | `obs` | integer | Number of observations |
 | `source` | string | Data source |
 
-[Sample survey list](docs/sample_survey_list.csv)
+Sample [metadata/survey_list.csv](docs/sample_survey_list.csv)
 
 ### `variable_list.csv`
 
@@ -78,7 +80,7 @@ One row per variable. Controls which variables appear in the UI, how they are la
 | `interact` | binary | 1 if available as an interaction term in the model |
 | `fe` | binary | 1 if available as a fixed effect in the model |
 
-[Sample variable list](docs/sample_variable_list.csv)
+Sample [metadata/variable_list.csv](docs/sample_variable_list.csv)
 
 The following must be included in the variable list and relevant data files:
 
@@ -98,20 +100,20 @@ One row per country–year–data level. Used to convert welfare aggregates from
 | `cpi` | numeric | Consumer price index |
 | `ppp2021` | numeric | PPP conversion factor relative to 2021 USD |
 
-[Sample cpi_ppp.csv](docs/sample_cpi_ppp.csv)
+Sample [metadata/cpi_ppp.csv](docs/sample_cpi_ppp.csv)
 
 ---
 
 ## Microdata
 
-All microdata files are parquet format. Files are named `{code}_{year}_{survname}_{level}.parquet` and stored under `microdata/{level}/{code}/`.
+All microdata files are parquet format. Files are named `{code}_{year}_{survname}_{source}_{level}.parquet` and stored under `microdata/{level}/{code}/`.
 
 Examples:
 ```
-microdata/hh/GNB/GNB_2018_EHCVM_hh.parquet
-microdata/ind/GNB/GNB_2018_EHCVM_ind.parquet
-microdata/firm/GNB/GNB_2018_EHCVM_firm.parquet
-microdata/h3/GNB/GNB_2018_EHCVM_h3.parquet
+microdata/hh/GNB/GNB_2018_EHCVM_GMD_hh.parquet
+microdata/ind/GNB/GNB_2018_EHCVM_GMD_ind.parquet
+microdata/firm/GNB/GNB_2018_EHCVM_GMD_firm.parquet
+microdata/h3/GNB/GNB_2018_EHCVM_GMD_h3.parquet
 ```
 
 ### Individual file — `_ind.parquet`
@@ -188,10 +190,8 @@ One row per H3 cell per location. This is the spatial bridge between microdata a
 | `year` | integer | Starting year of survey |
 | `survname` | string | Survey acronym |
 | `h3`$^1$ | string$^2$ | H3 cell index |
-| `loc_id` | integer | Location identifier — join key to microdata files |
-| `timestamp` | date | Interview date assigned to this cell (month precision) |
-| `pop_2020` | integer | WorldPop 2020 population count — used for spatial weighting |
-| `area_km2` | numeric | H3 cell area in km² |
+| `loc_id` | integer | Location ID |
+| `pop_2020` | integer | 2020 population (GHS-POP) |
 
 $^1$ H3 cell index resolution is not fixed - merges are performed across resolutions using H3 parent/child relationships.
 $^2$ H3 cell indices are stored as hexadecimal strings (e.g., "8928308280fffff") but 64-bit integers under the hood.
@@ -209,7 +209,7 @@ All hazard files are parquet format, spatially indexed using H3 cells and tempor
 
 ### Weather
 
-#### Observed — `hazard/weather/{code}/observed/`
+#### Historical — `hazard/weather/historical/{code}/`
 
 One row per H3 cell per month. Covers the full historical record of the source dataset.
 
@@ -217,8 +217,8 @@ Filename: `{code}_{source}.parquet`
 
 Examples:
 ```
-hazard/weather/GNB/observed/GNB_era5land.parquet
-hazard/weather/GNB/observed/GNB_chirps3.parquet
+hazard/weather/historical/GNB/GNB_era5land.parquet
+hazard/weather/historical/GNB/GNB_chirps3.parquet
 ```
 
 | Column | Type | Description |
@@ -230,22 +230,32 @@ hazard/weather/GNB/observed/GNB_chirps3.parquet
 | `spei6` | numeric | Monthly Standardised Precipitation-Evapotranspiration Index (6-month accumulation) |
 | `...` | | Additional weather variables |
 
-#### Projected — `hazard/weather/{code}/projections/`
+#### Projected — `hazard/weather/projections/{code}/`
 
-Same schema as observed. The baseline file covers the historical CMIP6 model simulation period (1950-2014) and is used as the reference for computing climate change deltas. SSP files cover future projection periods (2015-2100).
+Same schema as observed + `model` column for multimodel ensembles (e.g. CMIP6). Different climate models produce a range of responses to the same greenhouse gas forcing. 
 
-Filename: `{code}_{source}_{scenario}_{percentile}.parquet`
-
-`{percentile}` represents the distribution of outcomes across the multi-model ensemble — different climate models produce a range of responses to the same greenhouse gas forcing.
+Filename: `{code}_{source}_{scenario}.parquet`
 
 Examples:
 ```
-hazard/weather/GNB/projections/GNB_cmip6_baseline_p50.parquet
-hazard/weather/GNB/projections/GNB_cmip6_ssp245_p50.parquet
-hazard/weather/GNB/projections/GNB_cmip6_ssp370_p50.parquet
-hazard/weather/GNB/projections/GNB_cmip6_ssp585_p50.parquet
-hazard/weather/GNB/projections/GNB_cmip6_ssp585_p90.parquet
+hazard/weather/projections/GNB/GNB_cmip6_historical.parquet
+hazard/weather/projections/GNB/GNB_cmip6_ssp245.parquet
+hazard/weather/projections/GNB/GNB_cmip6_ssp370.parquet
+hazard/weather/projections/GNB/GNB_cmip6_ssp585.parquet
 ```
+
+The historical `{scenario}` covers the historical simulation period (1950-2014 for CMIP6). Other scenarios cover the future simulation period (2015-2100 for CMIP6). These are used to compute climate change deltas.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `model` | string | Ensemble model member |
+| `h3` | string | H3 cell index |
+| `timestamp` | date | Month (first day of month) |
+| `t` | numeric | Monthly temperature (°C) |
+| `tx` | numeric | Monthly daily maximum temperature (°C) |
+| `spei6` | numeric | Monthly Standardised Precipitation-Evapotranspiration Index (6-month accumulation) |
+| `...` | | Additional weather variables |
+
 Must be included in weather data files:
 
 - `h3`, `timestamp`
@@ -256,7 +266,7 @@ Must be included in weather data files:
 ### Events 
 🚧 **<span style="color:red">Under development. Not implemented in WISE-APP</span>**
 
-#### Historical — `hazard/events/{code}/historical/`
+#### Historical — `hazard/events/historical/{code}/`
 
 One row per H3 cell per event. Covers recorded discrete hazard events (e.g. floods, tropical cyclones).
 
@@ -264,8 +274,8 @@ Filename: `{code}_{source}.parquet`
 
 Examples:
 ```
-hazard/events/GNB/historical/GNB_gfd.parquet
-hazard/events/GNB/historical/GNB_ibtracs.parquet
+hazard/events/historical/GNB/GNB_groundsource.parquet
+hazard/events/historical/GNB/GNB_ibtracs.parquet
 ```
 
 | Column | Type | Description |
@@ -279,34 +289,35 @@ hazard/events/GNB/historical/GNB_ibtracs.parquet
 | `intensity` | numeric | Primary intensity measure (units vary by hazard type) |
 | `...` | | Additional event-level variables |
 
-#### Probabilistic — `hazard/events/{code}/probabilistic/`
+#### Probabilistic — `hazard/events/probabilistic/{code}/`
 
-One row per H3 cell per return period. Represents synthetic hazard footprints across a range of return periods. There is no timestamp — the join to microdata is spatial only, via `loc_id` through the h3 lookup. A single file contains all return periods for a given source and scenario.
+One row per H3 cell per return period (per model for ensemble outputs). Represents synthetic hazard footprints across a range of return periods. A single file contains all return periods for a given source and scenario.
 
-Filename: `{code}_{source}.parquet` or `{code}_{source}_{scenario}_{percentile}.parquet` for climate-adjusted versions.
-
-`{percentile}` is only relevant for multi-model ensemble outputs.
+Filename: `{code}_{source}.parquet` or `{code}_{source}_{scenario}.parquet` for climate-adjusted versions.
 
 Examples:
 ```
-hazard/events/GNB/probabilistic/GNB_fathom.parquet
-hazard/events/GNB/probabilistic/GNB_storm_ssp585_p50.parquet
+hazard/events/probabilistic/GNB/GNB_fathom.parquet
+hazard/events/probabilistic/GNB/GNB_storm_historical.parquet
+hazard/events/probabilistic/GNB/GNB_storm_ssp585.parquet
 ```
 
 | Column | Type | Description |
 |--------|------|-------------|
+| `model` | string | Ensemble model member |
 | `h3` | string | H3 cell index |
 | `event_type` | string | Hazard type (e.g. `flood`, `cyclone`) |
 | `return_period` | integer | Return period in years (e.g. 10, 50, 100) |
 | `intensity` | numeric | Primary intensity measure (units vary by hazard type) |
 | `...` | | Additional scenario-level variables |
 
+- `model` is only relevant for multimodel ensemble outputs.
 
 ## Preparing data for WISE-APP
 
 ### 1. Define variables
 
-Define the variables derived from microdata and weather data in `variable_list.csv`. Each row documents a variable, its meaning, and how it can be used in the app (see above).
+Define the variables in the microdata and hazard data in `variable_list.csv`. Each row documents a variable, its meaning, and how it can be used in the app (see above).
 
 - the function `validate_varlist()` in `code/utils.R` checks the format of the variable list is valid and provides clear error messages. 
 
@@ -314,29 +325,29 @@ Define the variables derived from microdata and weather data in `variable_list.c
 
 Prepare the data for WISE-APP. Scripts in `code/` set up the correct directory, prepare data from several data sources, and perform validation checks. They clean, harmonize, and derive variables as defined in `variable_list.csv`. 
 
-- `wiseapp_dir.R` will set-up the data directory for WISE-APP.
+- `00_wiseapp_dir.R` will set-up the data directory for WISE-APP.
 
-- `gmd_surveys.R` produces individual, household and h3 level data files from GMD. 
+- `01_cpi_ppp.R` saves the latest Consumer Price Index (CPI) values and Purchasing Power Parity (PPP) values used by the World Bank to compute poverty and inequality statistics to `cpi_ppp.csv`. WISE-APP uses these to convert monetary variables in surveys (such as welfare) to 2021 PPP for comparability across survey years and countries.
 
-- `era5land_weather.R` prepares H3-month level weather data files from ERA5-Land. 
+- `02_gmd_surveys.R` produces individual, household and h3 level data files from GMD. 
+  - `survey_list.R` prepares `survey_list.csv` based on files present in `/data/microdata/`. It is called at the end on `02_gmd_surveys.R`.
 
-- `cmip6_weather.R` prepares H3-month level weather data files from CMIP6 ensembles.
+- `03_era5land_weather.R` prepares H3-month level weather data files from ERA5-Land. 
 
-- `cpi_ppp.R` saves the latest Consumer Price Index (CPI) values and Purchasing Power Parity (PPP) values used by the World Bank to compute poverty and inequality statistics to `cpi_ppp.csv`. WISE-APP uses these to convert monetary variables in surveys (such as welfare) to 2021 PPP for comparability across survey years and countries.
+- `04_cmip6_weather.R` prepares H3-month level weather data files from CMIP6 ensembles.
 
-- `survey_list.R` prepares `survey_list.csv` based on files present in `/data/microdata/`.
+- `05_validate_wiseapp_data.R` checks for issues in data files prepared for WISE-APP. 
 
-- `validate_wiseapp_data.R` checks for issues in data files prepared for WISE-APP. 
+- `utils.R` contains helper functions.
 
 ### 3. Use data in WISE-APP
-The WISE-APP data directory can be saved to a local folder or any remote file system that WISE-APP can connect to. The following remote file systems are supported:
+The WISE-APP data directory can be saved to a local folder or remote file system that WISE-APP can connect to. The following remote file systems are supported:
 
 - S3 (AWS)
 - Google Cloud Storage
 - Azure Data Lake
 - Hugging Face
 - Databricks
-
 
 ## H3
 WISE-APP uses the [H3 spatial indexing system](https://h3geo.org) and timestamps to flexibly merge microdata and hazard data:
