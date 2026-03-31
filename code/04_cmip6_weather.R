@@ -309,7 +309,7 @@ message("\n--- Validation (last country) ---")
 
 sample_tbl <- open_dataset(
   file.path(out_path, tail(code_list, 1), glue("{tail(code_list, 1)}_cmip6_historical.parquet"))
-) |> collect()
+)
 
 sample_tbl |> head(5) |> collect() |> print()
 
