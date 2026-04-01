@@ -28,14 +28,13 @@ source("code/utils.R")
 # ---------------------------------------------------------------------------
 
 data_path <- Sys.getenv("WISEAPP_DATA_PATH")
-
 varlist_path    <- file.path(data_path, "metadata", "variable_list.csv")
 surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
-
-era5land_path <- "/Users/bbrunckhorst/Library/CloudStorage/OneDrive-WBG/Household survey locations to H3/02_data/raw/era5land"
-
+era5land_path <- "C:/Users/wb587256/OneDrive - WBG/Household survey locations to H3/02_data/raw/era5land"
 h3_path  <- file.path(data_path, "microdata", "h3")
 out_path <- file.path(data_path, "hazard", "weather", "historical")
+
+update_all <- FALSE  # if TRUE, reprocess all countries even if output exists; if FALSE, skip existing outputs
 
 h3_level <- 6L
 
@@ -74,6 +73,7 @@ code_list <- read.csv(surveylist_path) |> pull(code) |> unique()
 # ---------------------------------------------------------------------------
 
 h3_snapped <- function(code) {
+  load_h3()
   dir   <- file.path(h3_path, code)
   files <- list.files(dir, pattern = "\\.parquet$", full.names = TRUE)
 
@@ -82,7 +82,7 @@ h3_snapped <- function(code) {
     distinct(h3) |>
     mutate(
       grid_lat = round(h3_cell_to_lat(h3), 1),
-      grid_lon = round(h3_cell_to_lng(h3), 1)   # fix: lon not lng
+      grid_lon = round(h3_cell_to_lng(h3), 1)  
     ) |>
     select(h3, grid_lon, grid_lat)
 }
@@ -180,10 +180,10 @@ for (code in code_list) {
   # Skip if output already exists
   dir.create(file.path(out_path, code), showWarnings = FALSE)
   out_file <- file.path(out_path, code, glue("{code}_era5land.parquet"))
-  if (file.exists(out_file)) {
-    message("Output already exists, skipping: ", out_file)
-    next
-  }
+  if (!update_all & file.exists(out_file)) {
+      message("  Output already exists, skipping: ", out_file)
+      next
+    }
 
   country_grid <- h3_snapped(code)
 
@@ -252,7 +252,7 @@ for (code in code_list) {
     message("  Combining ", length(chunk_files), " yearly chunks...")
     open_dataset(chunk_files) |>
       arrange(h3, timestamp) |>
-      write_dataset(out_file, options = c("COMPRESSION ZSTD"))
+      write_dataset(out_file, options = c("COMPRESSION ZSTD, ROW_GROUP_SIZE 1000000"))
     # remove temp chunk files
     file.remove(chunk_files)
 
@@ -260,7 +260,7 @@ for (code in code_list) {
     # small country — process all years at once
     message("  Reading ", paste(weather_vars, collapse = ", "))
     result <- process_year(NULL)
-    write_dataset(result, out_file, options = c("COMPRESSION ZSTD"))
+    write_dataset(result, out_file, options = c("COMPRESSION ZSTD, ROW_GROUP_SIZE 1000000"))
   }
 
   n_rows <- open_dataset(out_file) |> count() |> pull(n)

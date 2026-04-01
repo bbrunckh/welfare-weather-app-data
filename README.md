@@ -189,7 +189,7 @@ One row per H3 cell per location. This is the spatial bridge between microdata a
 | `code` | string | Country code |
 | `year` | integer | Starting year of survey |
 | `survname` | string | Survey acronym |
-| `h3`$^1$ | string$^2$ | H3 cell index |
+| `h3`$^1$ | string $^2$ | H3 cell index |
 | `loc_id` | integer | Location ID |
 | `pop_2020` | integer | 2020 population (GHS-POP) |
 
@@ -232,7 +232,7 @@ hazard/weather/historical/GNB/GNB_chirps3.parquet
 
 #### Projected — `hazard/weather/projections/{code}/`
 
-Same schema as observed + `model` column for multimodel ensembles (e.g. CMIP6). Different climate models produce a range of responses to the same greenhouse gas forcing. 
+Same schema as historical weather + `model` column for multimodel ensembles (e.g. CMIP6). Different climate models produce a range of responses to the same greenhouse gas forcing. 
 
 Filename: `{code}_{source}_{scenario}.parquet`
 

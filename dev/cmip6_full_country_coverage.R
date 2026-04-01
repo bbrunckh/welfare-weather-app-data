@@ -28,13 +28,11 @@ source("code/utils.R")
 # ---------------------------------------------------------------------------
 
 data_path <- Sys.getenv("WISEAPP_DATA_PATH")
+
 varlist_path    <- file.path(data_path, "metadata", "variable_list.csv")
 surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
 cmip6_path <- "C:/Users/wb587256/OneDrive - WBG/Household survey locations to H3/02_data/raw/cmip6"
-h3_path  <- file.path(data_path, "microdata", "h3")
 out_path <- file.path(data_path, "hazard", "weather", "projections")
-
-update_all <- FALSE  # if TRUE, reprocess all countries even if output exists; if FALSE, skip existing outputs
 
 h3_level <- 4L
 
@@ -55,6 +53,10 @@ round1 <- c("t", "tn", "tx")
 round2 <- c("mrsos", "spei6")
 clamp3 <- c("spei6")
 
+# url for WBG admin-0 level geopackage
+url <- "https://datacatalogfiles.worldbank.org/ddh-published/0038272/5/DR0095370/World Bank Official Boundaries (GeoPackage)/World Bank Official Boundaries - Admin 0.gpkg"
+
+
 # ---------------------------------------------------------------------------
 # Load and validate WISE-APP variable list
 # ---------------------------------------------------------------------------
@@ -73,26 +75,45 @@ if (file.exists(varlist_path)) {
 code_list <- read.csv(surveylist_path) |> pull(code) |> unique()
 
   # # test with one country
-  # code_list <- "AGO"
+  code_list <- "AGO"
 
 # ---------------------------------------------------------------------------
-# Helper: H3 cells in surveys -> snapped CMIP6 grid points
+# Helper: H3 cells covering country → snapped ERA5 grid points
 # ---------------------------------------------------------------------------
-
-h3_snapped <- function(code) {
-  load_h3() 
-  dir   <- file.path(h3_path, code)
-  files <- list.files(dir, pattern = "\\.parquet$", full.names = TRUE)
-
-  open_dataset(files) |>
-    mutate(h3 = h3_cell_to_parent(h3_string_to_h3(h3), h3_level)) |>
-    distinct(h3) |>
-    mutate(
-      grid_lat = round(h3_cell_to_lat(h3)),
-      grid_lon = round(h3_cell_to_lng(h3))
+h3_snapped <- function(code, url, h3_level, h3_lookup = 7L, round_digits = 1) {
+  
+  con <- cached_connection()
+  load_spatial()
+  load_h3()
+  DBI::dbExecute(con, "SET allow_asterisks_in_http_paths = true;")
+  
+  url <- gsub(" ", "%20", url)
+  
+  query <- paste0("
+    SELECT DISTINCT
+      h3_cell_to_parent(
+        unnest(h3_polygon_wkb_to_cells(ST_AsWKB(ST_MakeValid(geom_part)), ", h3_lookup, ")),
+        ", h3_level, "
+      ) AS h3
+    FROM (
+      SELECT unnest(ST_Dump(geom))['geom'] AS geom_part
+      FROM st_read('", url, "')
+      WHERE ISO_A3 = '", code, "'
+    )
+    WHERE ST_GeometryType(geom_part) IN ('POLYGON', 'MULTIPOLYGON')
+  ")
+  
+  dplyr::tbl(con, dplyr::sql(query)) |>
+    dplyr::mutate(
+      grid_lat = round(h3_cell_to_lat(h3), round_digits),
+      grid_lon = round(h3_cell_to_lng(h3), round_digits)
     ) |>
-    select(h3, grid_lon, grid_lat)
+    dplyr::select(h3, grid_lon, grid_lat)
 }
+
+# test
+# h3_snapped("BFA", url, h3_level = 5L) |> head() |> print()
+
 
 # ---------------------------------------------------------------------------
 # Helper: register one .nc variable as a DuckDB view
@@ -202,7 +223,7 @@ for (code in code_list) {
   message("\n========== ", code, " ==========")
 
   # H3 grid and lon/lat lookup are SSP-independent — compute once per country
-  country_grid <- h3_snapped(code)
+  country_grid <- h3_snapped(code, url, h3_level, round_digits = 0)
   country_lonlat <- country_grid |>
     select(grid_lon, grid_lat) |>
     distinct() |>
@@ -217,7 +238,7 @@ for (code in code_list) {
     # skip if output already exists
     dir.create(file.path(out_path, code), showWarnings = FALSE)
     out_file <- file.path(out_path, code, glue("{code}_cmip6_{ssp}.parquet"))
-    if (!update_all & file.exists(out_file)) {
+    if (file.exists(out_file)) {
       message("  Output already exists, skipping: ", out_file)
       next
     }
@@ -295,9 +316,10 @@ for (code in code_list) {
     message("  Written: ", out_file, "  [", format(n_rows, big.mark = ","), " rows]")
 
   } # end ssp loop
+
   duckdbfs::close_connection()
   gc()
-  
+
 } # end country loop
 message("\nDone.")
 
@@ -306,6 +328,7 @@ message("\nDone.")
 # ---------------------------------------------------------------------------
 
 message("\n--- Validation (last country) ---")
+code_list <- "AGO"
 sample_tbl <- open_dataset(
   file.path(out_path, tail(code_list, 1), glue("{tail(code_list, 1)}_cmip6_historical.parquet"))
 )
@@ -325,7 +348,7 @@ sample_tbl |>
 
 message("\n--- Validation (check no h3 missing) ---")
 
-h3_survey <- h3_snapped(tail(code_list, 1)) |> pull(h3)
+h3_survey <- h3_snapped(tail(code_list, 1), url, h3_level, round_digits = 0) |> pull(h3)
 
 h3_cmip6 <- open_dataset(
   file.path(out_path, tail(code_list, 1), glue("{tail(code_list, 1)}_cmip6_historical.parquet"))
