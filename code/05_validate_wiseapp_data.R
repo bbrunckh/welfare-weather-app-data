@@ -5,8 +5,8 @@ rm(list = ls())
 #------------------------------------------------------------------------------#
 # User inputs
 
-# path to data folder (where output files will be saved)
-data_path <- "data/"
+# path to wise-app data/ directory 
+data_path <- Sys.getenv("WISEAPP_DATA_PATH") 
 
 #------------------------------------------------------------------------------#
 # Load required libraries

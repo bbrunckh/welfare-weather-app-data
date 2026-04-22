@@ -17,7 +17,7 @@ data_path <- Sys.getenv("WISEAPP_DATA_PATH")
 varlist_path <- "data/variable_list.csv"
 
 # OPTIONAL path to existing survey list for updates (will skip surveys in list)
-surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
+# surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
 
 # set dlw token for downloading GMD data (use .Renviron for security)
 dlw::dlw_set_token(Sys.getenv("DLW_TOKEN"))
@@ -40,6 +40,7 @@ options(dlw.local_dir = "~/dlw/", dlw.verbose = FALSE)
 library(DBI)
 library(duckdb)
 library(duckdbfs)
+load_h3()
 library(dplyr)
 library(readr)
 library(pipr) # used to get poverty rates from PIP for validation checks
@@ -200,13 +201,28 @@ for (n in 1:nrow(spat_cat)){
   })
   if (error_occurred) {next}
 
-  # Strip haven_labelled class, to duckdb for faster processing
-survey_db <- as_tibble(gmd) |>
-  haven::zap_labels() |>
-  as_dataset()
+  #----------------------------------------------------------------------------#
+  # Calculate location level point coordinates from h3 data
+    # (population weighted average of H3 cell centroids)
+    # to merge with microdata
+  loc_coords <- as_tibble(h3) |> as_dataset() |>
+  mutate(
+    h3_lat = h3_cell_to_lat(h3_7),
+    h3_lng = h3_cell_to_lng(h3_7)
+  ) |>
+  summarise(
+    loc_lat = round(sum(h3_lat * pop_2020, na.rm = TRUE) / sum(pop_2020, na.rm = TRUE), 4),
+    loc_lng = round(sum(h3_lng * pop_2020, na.rm = TRUE) / sum(pop_2020, na.rm = TRUE), 4),
+    .by = "loc_id"
+  )
 
   #----------------------------------------------------------------------------#
   # Harmonize GMD variables
+
+  # Strip haven_labelled class, to duckdb for faster processing
+  survey_db <- as_tibble(gmd) |>
+    haven::zap_labels() |>
+    as_dataset()
 
   # construct empty GMD variables needed if they are not in data (to avoid errors in later processing steps)
   gmd_vars <- c(
@@ -336,6 +352,10 @@ survey_db <- as_tibble(gmd) |>
     survey_db <- survey_db |>
       select(-any_of(c("int_month", "int_year"))) |>
       left_join(spat_db, by = c("code", "year", "hhid"))
+
+    # merge location level coordinates from H3 data
+    survey_db <- survey_db |>
+      left_join(loc_coords, by = "loc_id")
   
     # monthly timestamp for merging weather data
     survey_db <- survey_db |>  
@@ -373,8 +393,9 @@ survey_db <- as_tibble(gmd) |>
   #----------------------------------------------------------------------------#
   # Prepare household level data for WISE-APP
 
-  hh_vars <- c("code", "year", "survname", "economy", "int_year", "int_month", 
-  "timestamp", "loc_id", "hhid", "hhsize", "urban", "internet", "ownhouse","rooms", 
+  hh_vars <- c("code", "economy", "year", "survname", 
+  "strata", "psu", "loc_id", "loc_lat", "loc_lng", "hhid", 
+  "int_year", "int_month", "timestamp", "hhsize", "urban", "internet", "ownhouse","rooms", 
   "cooksource", "imp_wat_rec", "piped", "piped_to_prem", "imp_san_rec", "electricity")
   spat_vars <- colnames(spat_db)[!colnames(spat_db) %in% hh_vars]
   group_vars <- c(hh_vars, spat_vars)
@@ -423,7 +444,7 @@ survey_db <- as_tibble(gmd) |>
   write_dataset(wise_hh, file.path(out_dir, 
   paste0(code, "_", year, "_",survname,"_GMD_hh.parquet")))
 
-  #----------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
   # Prepare H3 level data for WISE-APP
   wise_h3 <- as_tibble(h3) |> as_dataset() |>
     # use level 7 H3 Index in data
@@ -431,10 +452,10 @@ survey_db <- as_tibble(gmd) |>
     tidy_vars(varlist)
 
   # Save H3 level data
-out_dir <- file.path(data_path, "microdata/h3", code) 
-dir.create(out_dir, showWarnings = FALSE)
-write_dataset(wise_h3, file.path(out_dir, 
-  paste0(code, "_", year, "_",survname,"_GMD_h3.parquet")))
+  out_dir <- file.path(data_path, "microdata/h3", code) 
+  dir.create(out_dir, showWarnings = FALSE)
+  write_dataset(wise_h3, file.path(out_dir, 
+    paste0(code, "_", year, "_",survname,"_GMD_h3.parquet")))
 
 #------------------------------------------------------------------------------#
 

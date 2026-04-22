@@ -7,6 +7,8 @@ strata,Strata,character,,1,0,0,0,0,0,0,0,1
 psu,PSU,character,,1,0,0,0,0,0,0,0,1
 loc_type,Type of location data,character,,1,0,0,0,0,0,0,0,1
 loc_id,Spatial unit ID,character,,1,0,0,0,0,0,0,0,1
+loc_lat,Latitude ,numeric,,1,0,0,0,0,0,0,0,0
+loc_lng,Longitude,numeric,,1,0,0,0,0,0,0,0,0
 gaul1_code,GAUL 2024 level 1 code,character,,1,0,0,0,0,0,0,0,1
 gaul2_code,GAUL 2024 level 2 code,character,,1,0,0,0,0,0,0,0,1
 fbcz_id_num,Commuting Zone ID (Meta),character,,1,0,0,0,0,0,0,0,1
