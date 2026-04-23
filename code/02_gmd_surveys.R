@@ -51,7 +51,7 @@ source("code/utils.R")
 #------------------------------------------------------------------------------#
 # load and validate WISE-APP variable list
 if (file.exists(varlist_path)) {
-  varlist <- read.csv(varlist_path)
+  varlist <- read.csv(varlist_path, encoding = "latin1")
   validate_varlist(varlist)
 } else {
   stop("Variable list file not found at ", varlist_path)
