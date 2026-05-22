@@ -14,7 +14,7 @@ rm(list = ls())
 data_path <- Sys.getenv("WISEAPP_DATA_PATH") 
 
 # path to existing WISE-APP variable list
-varlist_path <- "data/variable_list.csv"
+varlist_path <- file.path(data_path, "metadata", "variable_list.csv")
 
 # OPTIONAL path to existing survey list for updates (will skip surveys in list)
 # surveylist_path <- file.path(data_path, "metadata", "survey_list.csv")
@@ -108,6 +108,9 @@ if (exists("surveys") && !missing(surveys) && !is.null(surveys)) {
 #------------------------------------------------------------------------------#
 # get country names from PIP
 pip_countries <- get_aux("countries")
+
+# get population from PIP (for rescaling sample weights)
+pip_population <- get_aux("pop")
 
 #------------------------------------------------------------------------------#
 
@@ -276,6 +279,14 @@ for (n in 1:nrow(spat_cat)){
       mutate(hhid = as.character(hhid)) |>
       filter(!is.na(welfare), !is.na(weight))
   }
+
+  # rescale sample weights to match national population from PIP for survey year
+  pip_pop_nat <- pip_population |> 
+    filter(as.integer(as.character(year)) == !!year, country_code == !!code, data_level == "national") |>
+      pull(value)
+
+  survey_db <- survey_db |>
+    mutate(weight = weight * (pip_pop_nat / sum(weight, na.rm = TRUE)))
 
   #----------------------------------------------------------------------------#
   # Prepare individual level data for WISE-APP
