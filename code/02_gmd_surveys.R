@@ -471,6 +471,7 @@ for (n in 1:nrow(spat_cat)){
 #------------------------------------------------------------------------------#
 
 message(paste0("✓  ", code, " ", year, " ", survname, " processed successfully."))
+  unlink(".tmp") # clean up temporary duckdb file after each survey
 } # end of survey loop
 
 #------------------------------------------------------------------------------#
